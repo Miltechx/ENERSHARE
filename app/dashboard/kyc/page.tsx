@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
-import { createClient } from '@/lib/supabase/client'
+import { db } from '@/lib/firebase/config'
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
 
 export default function KYCPage() {
   const { data: session, status: sessionStatus } = useSession()
@@ -15,6 +16,7 @@ export default function KYCPage() {
   const [bvn, setBvn] = useState('')
   const [kycStatus, setKycStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -28,15 +30,19 @@ export default function KYCPage() {
   }, [session])
 
   const checkKycStatus = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('kyc_submissions')
-      .select('status')
-      .eq('user_id', session?.user?.id)
-      .single()
-
-    if (data) {
-      setKycStatus(data.status)
+    if (!session?.user?.id) return
+    
+    try {
+      const kycRef = doc(db, 'kyc_submissions', session.user.id)
+      const kycSnap = await getDoc(kycRef)
+      
+      if (kycSnap.exists()) {
+        setKycStatus(kycSnap.data().status)
+      }
+    } catch (error) {
+      console.error('Error checking KYC status:', error)
+    } finally {
+      setPageLoading(false)
     }
   }
 
@@ -45,25 +51,35 @@ export default function KYCPage() {
     setLoading(true)
     setMessage('')
 
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('kyc_submissions')
-      .insert({
-        user_id: session?.user?.id,
+    if (!session?.user?.id) return
+
+    try {
+      const kycRef = doc(db, 'kyc_submissions', session.user.id)
+      await setDoc(kycRef, {
+        user_id: session.user.id,
         nin: nin,
         bvn: bvn,
         status: 'pending',
+        submittedAt: new Date().toISOString(),
       })
-
-    if (error) {
-      setMessage(`Error: ${error.message}`)
-    } else {
+      
       setMessage('KYC submitted successfully! Awaiting verification.')
       setKycStatus('pending')
       setNin('')
       setBvn('')
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
+  }
+
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin text-4xl">⚡</div>
+      </div>
+    )
   }
 
   if (kycStatus === 'approved') {
