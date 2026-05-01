@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import crypto from "crypto"
+import { db } from "@/lib/firebase/config"
+import { doc, getDoc, updateDoc, setDoc, increment, Timestamp } from "firebase/firestore"
 
 // Verify Paystack webhook signature
 function verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
@@ -14,55 +15,116 @@ export async function POST(request: NextRequest) {
 
   // Verify webhook is from Paystack
   if (!verifyWebhookSignature(payload, signature, process.env.PAYSTACK_SECRET_KEY!)) {
+    console.error("Invalid webhook signature")
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
   }
 
   const event = JSON.parse(payload)
-  const supabase = createClient()
+  console.log("Paystack webhook received:", event.event)
 
+  // Handle successful charge
   if (event.event === "charge.success") {
     const { reference, metadata, amount } = event.data
+    const userId = metadata.user_id
+    const amountInNaira = amount / 100 // Convert from kobo to naira
 
-    // Get pending payment
-    const { data: pending } = await supabase
-      .from("pending_payments")
-      .select("*")
-      .eq("reference", reference)
-      .single()
+    try {
+      // Get or create user wallet
+      const walletRef = doc(db, "wallets", userId)
+      const walletSnap = await getDoc(walletRef)
 
-    if (!pending) {
-      return NextResponse.json({ error: "Transaction not found" }, { status: 404 })
+      if (walletSnap.exists()) {
+        // Update existing wallet
+        await updateDoc(walletRef, {
+          balance_ngn: increment(amountInNaira),
+          updatedAt: Timestamp.now(),
+        })
+      } else {
+        // Create new wallet
+        await setDoc(walletRef, {
+          user_id: userId,
+          balance_ngn: amountInNaira,
+          demo_credits: 5000,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        })
+      }
+
+      // Record the deposit
+      const depositRef = doc(db, "deposits", reference)
+      await setDoc(depositRef, {
+        user_id: userId,
+        amount: amountInNaira,
+        reference: reference,
+        status: "completed",
+        payment_method: "paystack",
+        completedAt: Timestamp.now(),
+        metadata: metadata,
+      })
+
+      console.log(`Successfully credited ₦${amountInNaira} to user ${userId}`)
+
+      // Create notification for user
+      const notificationRef = doc(db, "notifications", `${userId}_${Date.now()}`)
+      await setDoc(notificationRef, {
+        user_id: userId,
+        title: "Deposit Successful",
+        message: `₦${amountInNaira.toLocaleString()} has been added to your wallet.`,
+        type: "payment",
+        read: false,
+        createdAt: Timestamp.now(),
+      })
+
+      return NextResponse.json({ received: true })
+    } catch (error) {
+      console.error("Error processing webhook:", error)
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
     }
-
-    // Update user's wallet
-    const { data: wallet } = await supabase
-      .from("wallets")
-      .select("*")
-      .eq("user_id", metadata.user_id)
-      .single()
-
-    const newBalance = (wallet?.balance_ngn || 0) + amount / 100
-
-    await supabase.from("wallets").upsert({
-      user_id: metadata.user_id,
-      balance_ngn: newBalance,
-      updated_at: new Date().toISOString(),
-    })
-
-    // Mark payment as completed
-    await supabase
-      .from("pending_payments")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("reference", reference)
-
-    // Record transaction
-    await supabase.from("deposits").insert({
-      user_id: metadata.user_id,
-      amount: amount / 100,
-      reference: reference,
-      status: "completed",
-    })
   }
 
+  // Handle transfer success (withdrawals)
+  if (event.event === "transfer.success") {
+    const { reference, amount, recipient } = event.data
+    const amountInNaira = amount / 100
+
+    try {
+      // Update withdrawal record
+      const withdrawalRef = doc(db, "withdrawals", reference)
+      await updateDoc(withdrawalRef, {
+        status: "completed",
+        processedAt: Timestamp.now(),
+      })
+
+      console.log(`Withdrawal of ₦${amountInNaira} to ${recipient.account_number} completed`)
+
+      return NextResponse.json({ received: true })
+    } catch (error) {
+      console.error("Error processing transfer webhook:", error)
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
+  }
+
+  // Handle transfer failed
+  if (event.event === "transfer.failed") {
+    const { reference, reason } = event.data
+
+    try {
+      const withdrawalRef = doc(db, "withdrawals", reference)
+      await updateDoc(withdrawalRef, {
+        status: "failed",
+        error_message: reason,
+        processedAt: Timestamp.now(),
+      })
+
+      console.log(`Withdrawal ${reference} failed: ${reason}`)
+
+      return NextResponse.json({ received: true })
+    } catch (error) {
+      console.error("Error processing failed transfer:", error)
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    }
+  }
+
+  // Acknowledge other events
   return NextResponse.json({ received: true })
 }
