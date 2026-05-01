@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { createClient } from "@/lib/supabase/client"
+import { signInWithEmailAndPassword } from "firebase/auth"
+import { auth } from "@/lib/firebase/config"
 
 const handler = NextAuth({
   providers: [
@@ -15,20 +16,22 @@ const handler = NextAuth({
           return null
         }
 
-        const supabase = createClient()
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: credentials.email,
-          password: credentials.password,
-        })
-
-        if (error || !data.user) {
+        try {
+          const userCredential = await signInWithEmailAndPassword(
+            auth,
+            credentials.email,
+            credentials.password
+          )
+          const user = userCredential.user
+          
+          return {
+            id: user.uid,
+            email: user.email,
+            name: user.displayName,
+          }
+        } catch (error) {
+          console.error("Auth error:", error)
           return null
-        }
-
-        return {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.user_metadata?.full_name,
         }
       }
     })
