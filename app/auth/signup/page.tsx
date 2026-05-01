@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Logo } from "@/components/Logo"
-import { createClient } from "@/lib/supabase/client"
+import { signUp } from "@/lib/firebase/auth"
 
 export default function SignUp() {
   const router = useRouter()
@@ -18,23 +18,21 @@ export default function SignUp() {
     e.preventDefault()
     setLoading(true)
     setError("")
-    
-    const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    })
-    
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    } else {
+
+    try {
+      await signUp(email, password, fullName)
       router.push("/auth/signin?registered=true")
+    } catch (error: any) {
+      console.error("Signup error:", error)
+      if (error.code === 'auth/email-already-in-use') {
+        setError("Email already in use. Please sign in.")
+      } else if (error.code === 'auth/weak-password') {
+        setError("Password should be at least 6 characters")
+      } else {
+        setError(error.message || "Failed to create account")
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
