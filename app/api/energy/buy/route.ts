@@ -1,7 +1,7 @@
-import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { sendEmail, getSaleEmailTemplate, getPurchaseEmailTemplate } from "@/lib/email"
+import { db } from "@/lib/firebase/config"
+import { doc, getDoc, updateDoc, addDoc, collection, Timestamp, runTransaction } from "firebase/firestore"
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession()
@@ -16,76 +16,112 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Listing ID required" }, { status: 400 })
   }
 
-  const supabase = createClient()
-
-  // Call the database function
-  const { data, error } = await supabase.rpc("process_energy_purchase", {
-    p_listing_id: listing_id,
-    p_buyer_id: session.user.id,
-  })
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  // If purchase succeeded, send email notifications
-  if (data?.success) {
-    try {
-      // Get buyer profile
-      const { data: buyerProfile } = await supabase
-        .from("profiles")
-        .select("email, full_name")
-        .eq("id", session.user.id)
-        .single()
-
-      // Get listing details to find seller
-      const { data: listing } = await supabase
-        .from("energy_listings")
-        .select("seller_id, amount_kwh, price_per_kwh_ngn, total_price")
-        .eq("id", listing_id)
-        .single()
-
-      if (listing) {
-        // Get seller profile
-        const { data: sellerProfile } = await supabase
-          .from("profiles")
-          .select("email, full_name")
-          .eq("id", listing.seller_id)
-          .single()
-
-        // Send email to buyer
-        if (buyerProfile?.email) {
-          await sendEmail({
-            to: buyerProfile.email,
-            subject: "Energy Purchase Confirmed - EnerShare",
-            html: getPurchaseEmailTemplate(
-              sellerProfile?.full_name || "Seller",
-              listing.amount_kwh,
-              listing.price_per_kwh_ngn,
-              listing.total_price
-            ),
-          })
-        }
-
-        // Send email to seller
-        if (sellerProfile?.email) {
-          await sendEmail({
-            to: sellerProfile.email,
-            subject: "Energy Sold - EnerShare",
-            html: getSaleEmailTemplate(
-              buyerProfile?.full_name || "Buyer",
-              listing.amount_kwh,
-              listing.price_per_kwh_ngn,
-              listing.total_price
-            ),
-          })
-        }
+  try {
+    // Use transaction for atomic operation
+    const result = await runTransaction(db, async (transaction) => {
+      // Get listing
+      const listingRef = doc(db, "energy_listings", listing_id)
+      const listingSnap = await transaction.get(listingRef)
+      
+      if (!listingSnap.exists()) {
+        throw new Error("Listing not found")
       }
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError)
-      // Don't fail the transaction if email fails
-    }
+      
+      const listing = listingSnap.data()
+      
+      if (listing.listing_status !== "available") {
+        throw new Error("Listing not available")
+      }
+      
+      // Get buyer's wallet
+      const walletRef = doc(db, "wallets", session.user.id)
+      const walletSnap = await transaction.get(walletRef)
+      
+      let buyerCredits = 5000 // default demo credits
+      if (walletSnap.exists()) {
+        buyerCredits = walletSnap.data().demo_credits || 5000
+      }
+      
+      const totalPrice = listing.amount_kwh * listing.price_per_kwh_ngn
+      
+      if (buyerCredits < totalPrice) {
+        throw new Error("Insufficient funds")
+      }
+      
+      // Calculate fee (2%)
+      const fee = totalPrice * 0.02
+      
+      // Update buyer's wallet
+      if (walletSnap.exists()) {
+        transaction.update(walletRef, {
+          demo_credits: buyerCredits - totalPrice,
+          updatedAt: Timestamp.now()
+        })
+      } else {
+        transaction.set(walletRef, {
+          user_id: session.user.id,
+          demo_credits: 5000 - totalPrice,
+          balance_ngn: 0,
+          createdAt: Timestamp.now()
+        })
+      }
+      
+      // Update seller's wallet
+      const sellerWalletRef = doc(db, "wallets", listing.seller_id)
+      const sellerWalletSnap = await transaction.get(sellerWalletRef)
+      let sellerCredits = 0
+      if (sellerWalletSnap.exists()) {
+        sellerCredits = sellerWalletSnap.data().demo_credits || 0
+      }
+      
+      if (sellerWalletSnap.exists()) {
+        transaction.update(sellerWalletRef, {
+          demo_credits: sellerCredits + (totalPrice - fee),
+          updatedAt: Timestamp.now()
+        })
+      } else {
+        transaction.set(sellerWalletRef, {
+          user_id: listing.seller_id,
+          demo_credits: totalPrice - fee,
+          balance_ngn: 0,
+          createdAt: Timestamp.now()
+        })
+      }
+      
+      // Create transaction record
+      const transactionsRef = collection(db, "transactions")
+      const txRef = doc(transactionsRef)
+      transaction.set(txRef, {
+        buyer_id: session.user.id,
+        seller_id: listing.seller_id,
+        listing_id: listing_id,
+        source_type: listing.source_type,
+        amount_kwh: listing.amount_kwh,
+        price_per_kwh_ngn: listing.price_per_kwh_ngn,
+        total_amount: totalPrice,
+        fee_ngn: fee,
+        tx_status: "completed",
+        createdAt: Timestamp.now()
+      })
+      
+      // Mark listing as sold
+      transaction.update(listingRef, {
+        listing_status: "sold",
+        updatedAt: Timestamp.now()
+      })
+      
+      return {
+        success: true,
+        transaction_id: txRef.id,
+        amount: listing.amount_kwh,
+        total: totalPrice,
+        fee: fee
+      }
+    })
+    
+    return NextResponse.json(result)
+  } catch (error: any) {
+    console.error("Buy error:", error)
+    return NextResponse.json({ error: error.message || "Purchase failed" }, { status: 500 })
   }
-
-  return NextResponse.json(data)
 }
