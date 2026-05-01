@@ -8,7 +8,7 @@ import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
 
 export default function SellEnergy() {
-  const { data: session, status } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const [amount, setAmount] = useState('')
   const [price, setPrice] = useState('')
@@ -18,11 +18,10 @@ export default function SellEnergy() {
   const [aiPrice, setAiPrice] = useState<number | null>(null)
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-  }, [status, router])
+    if (sessionStatus === 'unauthenticated') router.push('/auth/signin')
+  }, [sessionStatus, router])
 
   useEffect(() => {
-    // Simulate AI price recommendation
     const hour = new Date().getHours()
     let recommended = 85
     if (hour >= 18 && hour <= 22) recommended = 105
@@ -34,12 +33,29 @@ export default function SellEnergy() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      alert(`✅ Energy listed! ${amount} kWh at ₦${price}/kWh`)
-      router.push('/marketplace')
+    try {
+      const res = await fetch('/api/energy/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount_kwh: parseFloat(amount),
+          price_per_kwh_ngn: parseFloat(price),
+          source_type: source,
+          location: location || 'Lagos',
+        }),
+      })
+      if (res.ok) {
+        alert('✅ Energy listed successfully! Buyers can now purchase.')
+        router.push('/marketplace')
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Failed to list energy')
+      }
+    } catch (error) {
+      alert('Error creating listing')
+    } finally {
       setLoading(false)
-    }, 1000)
+    }
   }
 
   const totalEarnings = parseFloat(amount) * parseFloat(price)
@@ -70,7 +86,6 @@ export default function SellEnergy() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form */}
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6 space-y-6">
               <div>
@@ -106,7 +121,6 @@ export default function SellEnergy() {
                   placeholder="e.g., 10.5"
                   required
                 />
-                <p className="text-sm text-gray-500 mt-1">Your available surplus: ~18.5 kWh today</p>
               </div>
 
               <div>
@@ -148,7 +162,6 @@ export default function SellEnergy() {
                   onChange={(e) => setLocation(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="e.g., Lekki, Lagos"
-                  required
                 />
               </div>
 
@@ -172,7 +185,6 @@ export default function SellEnergy() {
             </form>
           </div>
 
-          {/* Preview Sidebar */}
           <div>
             <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white mb-6">
               <h3 className="font-bold text-lg mb-3">Listing Preview</h3>
