@@ -9,17 +9,17 @@ import { Icons } from '@/components/icons'
 import { createClient } from '@/lib/supabase/client'
 
 export default function KYCPage() {
-  const { data: session, status } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const [nin, setNin] = useState('')
   const [bvn, setBvn] = useState('')
-  const [status, setStatus] = useState<string | null>(null)
+  const [kycStatus, setKycStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-  }, [status, router])
+    if (sessionStatus === 'unauthenticated') router.push('/auth/signin')
+  }, [sessionStatus, router])
 
   useEffect(() => {
     if (session?.user) {
@@ -36,7 +36,7 @@ export default function KYCPage() {
       .single()
 
     if (data) {
-      setStatus(data.status)
+      setKycStatus(data.status)
     }
   }
 
@@ -59,14 +59,14 @@ export default function KYCPage() {
       setMessage(`Error: ${error.message}`)
     } else {
       setMessage('KYC submitted successfully! Awaiting verification.')
-      setStatus('pending')
+      setKycStatus('pending')
       setNin('')
       setBvn('')
     }
     setLoading(false)
   }
 
-  if (status === 'approved') {
+  if (kycStatus === 'approved') {
     return (
       <div className="min-h-screen bg-gray-50">
         <nav className="bg-white shadow-sm p-4">
@@ -105,7 +105,7 @@ export default function KYCPage() {
             <p className="text-gray-500 text-sm mt-2">Verify your identity to unlock all features</p>
           </div>
 
-          {status === 'pending' ? (
+          {kycStatus === 'pending' ? (
             <div className="text-center py-8">
               <div className="bg-yellow-50 text-yellow-600 p-4 rounded-lg">
                 Your KYC is pending review. We'll notify you once verified.
