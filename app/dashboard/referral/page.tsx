@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
-import { createClient } from '@/lib/supabase/client'
+import { db } from '@/lib/firebase/config'
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
 
 export default function ReferralPage() {
   const { data: session, status: sessionStatus } = useSession()
@@ -28,26 +29,46 @@ export default function ReferralPage() {
   }, [session])
 
   const fetchReferralData = async () => {
-    const supabase = createClient()
+    if (!session?.user?.id) return
 
-    // Get or create referral code
-    let { data: referral } = await supabase
-      .from('referrals')
-      .select('referral_code, total_referrals, total_bonus')
-      .eq('user_id', session?.user?.id)
-      .single()
+    try {
+      // Get or create referral code
+      const referralRef = doc(db, 'referrals', session.user.id)
+      const referralSnap = await getDoc(referralRef)
 
-    if (referral) {
-      setReferralCode(referral.referral_code)
-      setReferralCount(referral.total_referrals || 0)
-      setTotalBonus(referral.total_bonus || 0)
-    } else {
-      // Create referral code
-      const res = await fetch('/api/referral/create', { method: 'POST' })
-      const data = await res.json()
-      setReferralCode(data.referral_code)
+      let code = ''
+      let count = 0
+      let bonus = 0
+
+      if (referralSnap.exists()) {
+        const data = referralSnap.data()
+        code = data.referral_code
+        count = data.total_referrals || 0
+        bonus = data.total_bonus || 0
+      } else {
+        // Generate new referral code
+        code = generateReferralCode()
+        await setDoc(referralRef, {
+          user_id: session.user.id,
+          referral_code: code,
+          total_referrals: 0,
+          total_bonus: 0,
+          createdAt: new Date().toISOString(),
+        })
+      }
+
+      setReferralCode(code)
+      setReferralCount(count)
+      setTotalBonus(bonus)
+    } catch (error) {
+      console.error('Error fetching referral data:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
+  }
+
+  const generateReferralCode = () => {
+    return Math.random().toString(36).substring(2, 10).toUpperCase()
   }
 
   const copyToClipboard = () => {
@@ -56,7 +77,9 @@ export default function ReferralPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/signup?ref=${referralCode}`
+  const referralLink = typeof window !== 'undefined' 
+    ? `${window.location.origin}/auth/signup?ref=${referralCode}`
+    : ''
 
   if (loading) {
     return (
