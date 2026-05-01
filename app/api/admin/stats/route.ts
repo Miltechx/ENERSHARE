@@ -1,50 +1,40 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { createClient } from "@/lib/supabase/server"
+import { db } from "@/lib/firebase/config"
+import { collection, getDocs, query, where } from "firebase/firestore"
 
 export async function GET() {
   const session = await getServerSession()
-  
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const supabase = createClient()
+  try {
+    // Get total users
+    const usersSnapshot = await getDocs(collection(db, "profiles"))
+    const totalUsers = usersSnapshot.size
 
-  // Check admin
-  const { data: adminCheck } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", session.user.id)
-    .single()
+    // Get transactions
+    const transactionsSnapshot = await getDocs(collection(db, "transactions"))
+    const transactions = transactionsSnapshot.docs.map(doc => doc.data())
+    const totalTransactions = transactions.length
+    const totalVolume = transactions.reduce((sum, t) => sum + (t.total_amount || 0), 0)
+    const totalFees = transactions.reduce((sum, t) => sum + (t.fee_ngn || 0), 0)
 
-  if (!adminCheck?.is_admin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    // Get active listings
+    const listingsQuery = query(collection(db, "energy_listings"), where("listing_status", "==", "available"))
+    const listingsSnapshot = await getDocs(listingsQuery)
+    const activeListings = listingsSnapshot.size
+
+    return NextResponse.json({
+      totalUsers,
+      totalTransactions,
+      totalVolume,
+      totalFees,
+      activeListings,
+    })
+  } catch (error) {
+    console.error("Stats error:", error)
+    return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 })
   }
-
-  // Get stats
-  const { count: totalUsers } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true })
-
-  const { data: transactions } = await supabase
-    .from("transactions")
-    .select("total_amount, fee_ngn")
-
-  const totalVolume = transactions?.reduce((sum, t) => sum + (t.total_amount || 0), 0) || 0
-  const totalFees = transactions?.reduce((sum, t) => sum + (t.fee_ngn || 0), 0) || 0
-
-  const { count: activeListings } = await supabase
-    .from("energy_listings")
-    .select("*", { count: "exact", head: true })
-    .eq("listing_status", "available")
-
-  return NextResponse.json({
-    totalUsers: totalUsers || 0,
-    totalTransactions: transactions?.length || 0,
-    totalVolume,
-    totalFees,
-    activeListings: activeListings || 0,
-    pendingKyc: 0,
-  })
 }
