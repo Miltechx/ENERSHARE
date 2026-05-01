@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
-import { createClient } from '@/lib/supabase/client'
+import { db } from '@/lib/firebase/config'
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 
 interface Dispute {
   id: string
@@ -18,13 +19,6 @@ interface Dispute {
   resolution: string | null
   created_at: string
   resolved_at: string | null
-  transaction?: {
-    id: string
-    amount_kwh: number
-    total_amount: number
-    buyer_id: string
-    seller_id: string
-  }
 }
 
 export default function DisputesPage() {
@@ -44,23 +38,19 @@ export default function DisputesPage() {
   }, [session])
 
   const fetchDisputes = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('disputes')
-      .select(`
-        *,
-        transaction:transactions (
-          id,
-          amount_kwh,
-          total_amount,
-          buyer_id,
-          seller_id
-        )
-      `)
-      .or(`raised_by.eq.${session?.user?.id},transaction.seller_id.eq.${session?.user?.id},transaction.buyer_id.eq.${session?.user?.id}`)
+    if (!session?.user?.id) return
 
-    setDisputes(data as Dispute[] || [])
-    setLoading(false)
+    try {
+      const disputesRef = collection(db, 'disputes')
+      const q = query(disputesRef, where('raised_by', '==', session.user.id), orderBy('created_at', 'desc'))
+      const snapshot = await getDocs(q)
+      const disputesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Dispute[]
+      setDisputes(disputesData)
+    } catch (error) {
+      console.error('Error fetching disputes:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (loading) {
@@ -99,9 +89,6 @@ export default function DisputesPage() {
                   <div>
                     <p className="text-sm text-gray-500">
                       Transaction #{dispute.transaction_id?.slice(0, 8) || 'Unknown'}
-                    </p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Amount: {dispute.transaction?.amount_kwh || 0} kWh · ₦{dispute.transaction?.total_amount?.toLocaleString() || 0}
                     </p>
                     <p className="mt-3 font-medium">{dispute.reason}</p>
                   </div>
