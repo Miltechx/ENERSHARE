@@ -9,13 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/supabase-adapter": "^1.5.0",
     "@supabase/supabase-js": "^2.39.0",
     "@supabase/ssr": "^0.1.0",
     "next": "14.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "next-auth": "^4.24.5",
-    "@next-auth/supabase-adapter": "^0.4.0",
     "chart.js": "^4.4.1",
     "react-chartjs-2": "^5.2.0",
     "date-fns": "^2.30.0",
