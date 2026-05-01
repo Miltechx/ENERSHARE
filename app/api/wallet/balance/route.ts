@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { createClient } from "@/lib/supabase/server"
+import { db } from "@/lib/firebase/config"
+import { doc, getDoc } from "firebase/firestore"
 
 export async function GET() {
   const session = await getServerSession()
@@ -8,16 +9,26 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const supabase = createClient()
-  const { data: wallet } = await supabase
-    .from("wallets")
-    .select("balance_ngn, demo_credits")
-    .eq("user_id", session.user.id)
-    .single()
+  try {
+    const walletRef = doc(db, "wallets", session.user.id)
+    const walletSnap = await getDoc(walletRef)
 
-  return NextResponse.json({
-    balance_ngn: wallet?.balance_ngn || 0,
-    demo_credits: wallet?.demo_credits || 0,
-    total: (wallet?.balance_ngn || 0) + (wallet?.demo_credits || 0),
-  })
+    if (walletSnap.exists()) {
+      const data = walletSnap.data()
+      return NextResponse.json({
+        balance_ngn: data.balance_ngn || 0,
+        demo_credits: data.demo_credits || 5000,
+        total: (data.balance_ngn || 0) + (data.demo_credits || 5000),
+      })
+    } else {
+      return NextResponse.json({
+        balance_ngn: 0,
+        demo_credits: 5000,
+        total: 5000,
+      })
+    }
+  } catch (error) {
+    console.error("Wallet balance error:", error)
+    return NextResponse.json({ error: "Failed to fetch balance" }, { status: 500 })
+  }
 }
