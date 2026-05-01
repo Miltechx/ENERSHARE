@@ -1,23 +1,28 @@
-import { createClient } from "@/lib/supabase/server"
-
+// Security monitoring (Supabase removed - simplified version)
 export async function logSecurityEvent(event: {
   type: string
   user_id?: string
   ip?: string
   details: any
 }) {
-  const supabase = createClient()
+  // For now, just log to console
+  // In production, you can send to a logging service like Sentry
+  console.log(`[SECURITY] ${event.type}:`, {
+    user_id: event.user_id,
+    ip: event.ip,
+    details: event.details,
+    timestamp: new Date().toISOString(),
+  })
   
+  // Optionally send to your own API endpoint
   try {
-    await supabase.from("security_logs").insert({
-      event_type: event.type,
-      user_id: event.user_id,
-      ip_address: event.ip,
-      details: event.details,
-      created_at: new Date().toISOString(),
+    await fetch('/api/logs/security', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(event),
     })
   } catch (error) {
-    console.error("Failed to log security event:", error)
+    // Silently fail
   }
 }
 
