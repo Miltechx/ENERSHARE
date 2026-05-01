@@ -1,4 +1,5 @@
-// Security event logging
+import { createClient } from "@/lib/supabase/server"
+
 export async function logSecurityEvent(event: {
   type: string
   user_id?: string
@@ -6,16 +7,20 @@ export async function logSecurityEvent(event: {
   details: any
 }) {
   const supabase = createClient()
-  await supabase.from("security_logs").insert({
-    event_type: event.type,
-    user_id: event.user_id,
-    ip_address: event.ip,
-    details: event.details,
-    created_at: new Date().toISOString(),
-  })
+  
+  try {
+    await supabase.from("security_logs").insert({
+      event_type: event.type,
+      user_id: event.user_id,
+      ip_address: event.ip,
+      details: event.details,
+      created_at: new Date().toISOString(),
+    })
+  } catch (error) {
+    console.error("Failed to log security event:", error)
+  }
 }
 
-// Suspicious activity detection
 export function detectSuspiciousActivity(requests: any[]) {
   const suspiciousPatterns = {
     tooManyFailedLogins: requests.filter(r => r.type === "failed_login").length > 10,
