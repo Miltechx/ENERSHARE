@@ -9,16 +9,17 @@ import { Icons } from '@/components/icons'
 import { createClient } from '@/lib/supabase/client'
 
 export default function ReferralPage() {
-  const { data: session, status } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const [referralCode, setReferralCode] = useState('')
   const [referralCount, setReferralCount] = useState(0)
   const [totalBonus, setTotalBonus] = useState(0)
   const [copied, setCopied] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-  }, [status, router])
+    if (sessionStatus === 'unauthenticated') router.push('/auth/signin')
+  }, [sessionStatus, router])
 
   useEffect(() => {
     if (session?.user) {
@@ -32,26 +33,21 @@ export default function ReferralPage() {
     // Get or create referral code
     let { data: referral } = await supabase
       .from('referrals')
-      .select('referral_code')
+      .select('referral_code, total_referrals, total_bonus')
       .eq('user_id', session?.user?.id)
       .single()
 
-    if (!referral) {
+    if (referral) {
+      setReferralCode(referral.referral_code)
+      setReferralCount(referral.total_referrals || 0)
+      setTotalBonus(referral.total_bonus || 0)
+    } else {
+      // Create referral code
       const res = await fetch('/api/referral/create', { method: 'POST' })
       const data = await res.json()
-      referral = { referral_code: data.referral_code }
+      setReferralCode(data.referral_code)
     }
-
-    setReferralCode(referral.referral_code)
-
-    // Get referral stats
-    const { count } = await supabase
-      .from('referral_uses')
-      .select('*', { count: 'exact' })
-      .eq('referrer_id', session?.user?.id)
-
-    setReferralCount(count || 0)
-    setTotalBonus((count || 0) * 1000)
+    setLoading(false)
   }
 
   const copyToClipboard = () => {
@@ -60,7 +56,15 @@ export default function ReferralPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const referralLink = `${process.env.NEXT_PUBLIC_APP_URL}/auth/signup?ref=${referralCode}`
+  const referralLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/signup?ref=${referralCode}`
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin text-4xl">⚡</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
