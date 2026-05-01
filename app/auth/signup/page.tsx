@@ -1,6 +1,10 @@
 'use client'
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Logo } from "@/components/Logo"
+import { createClient } from "@/lib/supabase/client"
 
 export default function SignUp() {
   const router = useRouter()
@@ -8,25 +12,88 @@ export default function SignUp() {
   const [password, setPassword] = useState("")
   const [fullName, setFullName] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Demo mode - just redirect
-    router.push("/auth/signin?registered=true")
+    setLoading(true)
+    setError("")
+    
+    const supabase = createClient()
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
+    })
+    
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+    } else {
+      router.push("/auth/signin?registered=true")
+    }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        <h1 className="text-2xl font-bold text-center mb-6">Create Account</h1>
-        {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4">{error}</div>}
+        <div className="text-center mb-8">
+          <Logo variant="compact" className="justify-center" />
+          <h1 className="text-2xl font-bold mt-4">Create Account</h1>
+          <p className="text-gray-500 text-sm mt-1">Join the energy revolution</p>
+        </div>
+        
+        {error && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
+            {error}
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input type="text" placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full px-4 py-3 border rounded-lg" required />
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 border rounded-lg" required />
-          <input type="password" placeholder="Password (min 6 chars)" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 border rounded-lg" required minLength={6} />
-          <button type="submit" className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold">Sign Up</button>
+          <input
+            type="text"
+            placeholder="Full name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            required
+          />
+          <input
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password (min 6 characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            required
+            minLength={6}
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition disabled:opacity-50"
+          >
+            {loading ? "Creating account..." : "Sign Up"}
+          </button>
         </form>
-        <p className="text-center text-sm mt-6">Already have an account? <a href="/auth/signin" className="text-green-600">Sign in</a></p>
+        
+        <p className="text-center text-sm text-gray-500 mt-6">
+          Already have an account?{" "}
+          <Link href="/auth/signin" className="text-primary hover:underline">
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   )
