@@ -6,13 +6,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
-import { createClient } from '@/lib/supabase/client'
 
 interface DashboardData {
-  wallet: { demo_credits: number; balance_ngn: number }
-  listings: any[]
-  transactions: any[]
-  meter: any
+  wallet_balance: number
+  demo_credits: number
+  total_energy_sold: number
+  total_earned: number
+  active_listings: number
+  recent_transactions: any[]
+  meter_data: any
 }
 
 export default function Dashboard() {
@@ -35,8 +37,8 @@ export default function Dashboard() {
     try {
       const [walletRes, listingsRes, transactionsRes, meterRes] = await Promise.all([
         fetch('/api/user/wallet'),
-        fetch('/api/energy/listings?limit=3'),
-        fetch('/api/user/transactions?limit=5'),
+        fetch('/api/energy/listings'),
+        fetch('/api/user/transactions'),
         fetch('/api/meter/reading'),
       ])
 
@@ -45,11 +47,22 @@ export default function Dashboard() {
       const transactions = await transactionsRes.json()
       const meter = await meterRes.json()
 
+      // Calculate totals
+      const soldTransactions = transactions.filter((t: any) => t.seller_id === session?.user?.id && t.tx_status === 'completed')
+      const totalEnergySold = soldTransactions.reduce((sum: number, t: any) => sum + (t.amount_kwh || 0), 0)
+      const totalEarned = soldTransactions.reduce((sum: number, t: any) => sum + (t.total_amount - (t.fee_ngn || 0)), 0)
+      const activeListings = listings.filter((l: any) => l.listing_status === 'available').length
+      const demoCredits = wallet.demo_credits || 5000
+      const realBalance = wallet.balance_ngn || 0
+
       setData({
-        wallet: wallet,
-        listings: Array.isArray(listings) ? listings.slice(0, 3) : [],
-        transactions: Array.isArray(transactions) ? transactions.slice(0, 5) : [],
-        meter: meter,
+        wallet_balance: realBalance,
+        demo_credits: demoCredits,
+        total_energy_sold: totalEnergySold,
+        total_earned: totalEarned,
+        active_listings: activeListings,
+        recent_transactions: transactions.slice(0, 5),
+        meter_data: meter,
       })
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -69,9 +82,7 @@ export default function Dashboard() {
     )
   }
 
-  const totalEarnings = data.transactions
-    .filter((t: any) => t.seller_id === session?.user?.id && t.status === 'completed')
-    .reduce((sum: number, t: any) => sum + t.total_amount - (t.fee_ngn || 0), 0)
+  const totalBalance = data.wallet_balance + data.demo_credits
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -82,15 +93,9 @@ export default function Dashboard() {
               <Logo variant="compact" />
             </div>
             <div className="flex items-center space-x-6">
-              <Link href="/dashboard" className="text-primary font-semibold border-b-2 border-primary pb-1">
-                Dashboard
-              </Link>
-              <Link href="/marketplace" className="text-gray-600 hover:text-primary transition">
-                Marketplace
-              </Link>
-              <Link href="/dashboard/history" className="text-gray-600 hover:text-primary transition">
-                History
-              </Link>
+              <Link href="/dashboard" className="text-primary font-semibold border-b-2 border-primary pb-1">Dashboard</Link>
+              <Link href="/marketplace" className="text-gray-600 hover:text-primary transition">Marketplace</Link>
+              <Link href="/dashboard/history" className="text-gray-600 hover:text-primary transition">History</Link>
               <Link href="/marketplace/sell" className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-green-600 transition text-sm">
                 + Sell Energy
               </Link>
@@ -111,32 +116,30 @@ export default function Dashboard() {
           <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-green-100 text-sm">Wallet Balance</p>
-                <p className="text-3xl font-bold mt-1">₦{data.wallet?.demo_credits?.toLocaleString() || 5000}</p>
+                <p className="text-green-100 text-sm">Total Balance</p>
+                <p className="text-3xl font-bold mt-1">₦{totalBalance.toLocaleString()}</p>
               </div>
               <Icons.Wallet className="w-8 h-8 opacity-80" />
             </div>
-            <p className="text-green-100 text-xs mt-2">Demo credits</p>
+            <p className="text-green-100 text-xs mt-2">₦{data.demo_credits.toLocaleString()} demo • ₦{data.wallet_balance.toLocaleString()} real</p>
           </div>
 
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-blue-100 text-sm">Energy Sold</p>
-                <p className="text-3xl font-bold mt-1">
-                  {data.transactions.filter((t: any) => t.seller_id === session?.user?.id).reduce((sum: number, t: any) => sum + (t.amount_kwh || 0), 0)} kWh
-                </p>
+                <p className="text-3xl font-bold mt-1">{data.total_energy_sold} kWh</p>
               </div>
               <Icons.Lightning className="w-8 h-8 opacity-80" />
             </div>
-            <p className="text-blue-100 text-xs mt-2">₦{totalEarnings.toLocaleString()} earned</p>
+            <p className="text-blue-100 text-xs mt-2">₦{data.total_earned.toLocaleString()} earned</p>
           </div>
 
           <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-yellow-100 text-sm">Active Listings</p>
-                <p className="text-3xl font-bold mt-1">{data.listings.filter((l: any) => l.listing_status === 'available').length}</p>
+                <p className="text-3xl font-bold mt-1">{data.active_listings}</p>
               </div>
               <Icons.Trade className="w-8 h-8 opacity-80" />
             </div>
@@ -149,11 +152,11 @@ export default function Dashboard() {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-purple-100 text-sm">Carbon Saved</p>
-                <p className="text-3xl font-bold mt-1">{data.meter?.carbon_saved_kg || 0} kg</p>
+                <p className="text-3xl font-bold mt-1">{data.meter_data?.carbon_saved_kg || 0} kg</p>
               </div>
               <Icons.Carbon className="w-8 h-8 opacity-80" />
             </div>
-            <p className="text-purple-100 text-xs mt-2">🌍 Equivalent to planting {Math.floor((data.meter?.carbon_saved_kg || 0) / 25)} trees</p>
+            <p className="text-purple-100 text-xs mt-2">🌍 Equivalent to planting {Math.floor((data.meter_data?.carbon_saved_kg || 0) / 25)} trees</p>
           </div>
         </div>
 
@@ -166,16 +169,16 @@ export default function Dashboard() {
             <div className="grid grid-cols-3 gap-4">
               <div className="text-center">
                 <p className="text-gray-500 text-sm">Current Output</p>
-                <p className="text-2xl font-bold text-primary">{data.meter?.current_power_watts || 0} W</p>
+                <p className="text-2xl font-bold text-primary">{data.meter_data?.current_power_watts || 0} W</p>
               </div>
               <div className="text-center">
                 <p className="text-gray-500 text-sm">Today's Generation</p>
-                <p className="text-2xl font-bold text-primary">{data.meter?.daily_generation_kwh || 0} kWh</p>
+                <p className="text-2xl font-bold text-primary">{data.meter_data?.daily_generation_kwh || 0} kWh</p>
               </div>
               <div className="text-center">
                 <p className="text-gray-500 text-sm">Grid Status</p>
-                <p className={`text-2xl font-bold ${data.meter?.grid_status === 'connected' ? 'text-green-600' : 'text-red-600'}`}>
-                  {data.meter?.grid_status === 'connected' ? 'ON' : 'OFF'}
+                <p className={`text-2xl font-bold ${data.meter_data?.grid_status === 'connected' ? 'text-green-600' : 'text-red-600'}`}>
+                  {data.meter_data?.grid_status === 'connected' ? 'ON' : 'OFF'}
                 </p>
               </div>
             </div>
@@ -198,7 +201,7 @@ export default function Dashboard() {
 
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>
-          {data.transactions.length === 0 ? (
+          {data.recent_transactions.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Icons.Trade className="w-12 h-12 mx-auto text-gray-300 mb-3" />
               <p>No transactions yet</p>
@@ -208,7 +211,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {data.transactions.map((tx: any) => (
+              {data.recent_transactions.map((tx: any) => (
                 <div key={tx.id} className="flex justify-between items-center p-3 border-b last:border-0">
                   <div className="flex items-center space-x-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.seller_id === session?.user?.id ? 'bg-green-100' : 'bg-blue-100'}`}>
@@ -220,7 +223,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p className="font-semibold">
-                        {tx.seller_id === session?.user?.id ? `Sold to ${tx.buyer_name || 'Buyer'}` : `Bought from ${tx.seller_name || 'Seller'}`}
+                        {tx.seller_id === session?.user?.id ? 'Sold' : 'Bought'} energy
                       </p>
                       <p className="text-sm text-gray-500">
                         {tx.amount_kwh} kWh at ₦{tx.price_per_kwh_ngn}/kWh
@@ -231,7 +234,7 @@ export default function Dashboard() {
                     <p className={`font-bold ${tx.seller_id === session?.user?.id ? 'text-green-600' : 'text-red-600'}`}>
                       {tx.seller_id === session?.user?.id ? '+' : '-'}₦{tx.total_amount?.toLocaleString() || 0}
                     </p>
-                    <p className="text-xs text-gray-400">{new Date(tx.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-400">{tx.createdAt ? new Date(tx.createdAt.toDate()).toLocaleDateString() : 'Just now'}</p>
                   </div>
                 </div>
               ))}
