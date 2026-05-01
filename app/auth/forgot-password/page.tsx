@@ -37,7 +37,7 @@ export default function ForgotPassword() {
         <div className="text-center mb-8">
           <Logo variant="compact" className="justify-center" />
           <h1 className="text-2xl font-bold mt-4">Reset Password</h1>
-          <p className="text-gray-500 text-sm mt-2">We'll send you a link to reset your password</p>
+          <p className="text-gray-500 text-sm mt-1">We'll send you a link to reset your password</p>
         </div>
 
         {sent ? (
