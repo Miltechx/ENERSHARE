@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { createClient } from "@/lib/supabase/server"
+import { db } from "@/lib/firebase/config"
+import { doc, updateDoc } from "firebase/firestore"
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession()
-  
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -16,28 +16,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "User ID required" }, { status: 400 })
   }
 
-  const supabase = createClient()
-
-  // Check if the current user is admin
-  const { data: adminCheck } = await supabase
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", session.user.id)
-    .single()
-
-  if (!adminCheck?.is_admin) {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 })
+  try {
+    const userRef = doc(db, "profiles", user_id)
+    await updateDoc(userRef, { is_approved: true })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Approve user error:", error)
+    return NextResponse.json({ error: "Failed to approve user" }, { status: 500 })
   }
-
-  // Approve the user
-  const { error } = await supabase
-    .from("profiles")
-    .update({ is_approved: true })
-    .eq("id", user_id)
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json({ success: true })
 }
