@@ -12,14 +12,14 @@ interface Listing {
   seller_name: string
   source_type: string
   amount_kwh: number
-  price_per_kwh: number
+  price_per_kwh_ngn: number
   total_price: number
   location: string
   created_at: string
 }
 
 export default function Marketplace() {
-  const { data: session, status } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,33 +27,56 @@ export default function Marketplace() {
   const [buying, setBuying] = useState<string | null>(null)
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-  }, [status, router])
+    if (sessionStatus === 'unauthenticated') router.push('/auth/signin')
+  }, [sessionStatus, router])
 
   useEffect(() => {
-    // Mock listings data for demo
-    const mockListings: Listing[] = [
-      { id: '1', seller_name: 'Oluwaseun A.', source_type: 'solar', amount_kwh: 25, price_per_kwh: 85, total_price: 2125, location: 'Lekki, Lagos', created_at: '2024-01-15T10:00:00Z' },
-      { id: '2', seller_name: 'Chidi N.', source_type: 'solar', amount_kwh: 18, price_per_kwh: 90, total_price: 1620, location: 'Victoria Island, Lagos', created_at: '2024-01-15T09:30:00Z' },
-      { id: '3', seller_name: 'Amara O.', source_type: 'generator', amount_kwh: 12, price_per_kwh: 180, total_price: 2160, location: 'GRA, Lagos', created_at: '2024-01-15T08:00:00Z' },
-      { id: '4', seller_name: 'Bola K.', source_type: 'solar', amount_kwh: 30, price_per_kwh: 82, total_price: 2460, location: 'Ajah, Lagos', created_at: '2024-01-14T20:00:00Z' },
-      { id: '5', seller_name: 'Tunde A.', source_type: 'battery', amount_kwh: 8, price_per_kwh: 75, total_price: 600, location: 'Ikoyi, Lagos', created_at: '2024-01-14T15:00:00Z' },
-    ]
-    setListings(mockListings)
-    setLoading(false)
+    fetchListings()
   }, [])
+
+  const fetchListings = async () => {
+    try {
+      const res = await fetch('/api/energy/listings')
+      const data = await res.json()
+      setListings(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching listings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleBuy = async (listingId: string) => {
     setBuying(listingId)
-    // Simulate purchase
-    setTimeout(() => {
-      alert('Purchase successful! Energy credits added to your account.')
-      setListings(listings.filter(l => l.id !== listingId))
+    try {
+      const res = await fetch('/api/energy/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listing_id: listingId }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert('Purchase successful! Energy credits added to your account.')
+        fetchListings()
+      } else {
+        alert(data.error || 'Purchase failed')
+      }
+    } catch (error) {
+      alert('Error processing purchase')
+    } finally {
       setBuying(null)
-    }, 1000)
+    }
   }
 
   const filteredListings = filter === 'all' ? listings : listings.filter(l => l.source_type === filter)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin text-4xl">⚡</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -75,7 +98,6 @@ export default function Marketplace() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with AI Alert */}
         <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-4 mb-8 border border-blue-200">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center space-x-3">
@@ -92,7 +114,6 @@ export default function Marketplace() {
           </div>
         </div>
 
-        {/* Filters */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">Energy Marketplace</h1>
           <div className="flex space-x-2">
@@ -108,7 +129,6 @@ export default function Marketplace() {
           </div>
         </div>
 
-        {/* Stats Bar */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-lg p-3 text-center">
             <p className="text-xs text-gray-500">Available Energy</p>
@@ -120,14 +140,13 @@ export default function Marketplace() {
           </div>
           <div className="bg-white rounded-lg p-3 text-center">
             <p className="text-xs text-gray-500">Lowest Price</p>
-            <p className="text-xl font-bold text-primary">₦{Math.min(...filteredListings.map(l => l.price_per_kwh), 0)}/kWh</p>
+            <p className="text-xl font-bold text-primary">
+              ₦{filteredListings.length > 0 ? Math.min(...filteredListings.map(l => l.price_per_kwh_ngn)) : 0}/kWh
+            </p>
           </div>
         </div>
 
-        {/* Listings Grid */}
-        {loading ? (
-          <div className="text-center py-12">Loading marketplace...</div>
-        ) : filteredListings.length === 0 ? (
+        {filteredListings.length === 0 ? (
           <div className="bg-white rounded-xl shadow-md p-12 text-center">
             <Icons.Lightning className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No Energy Available</h3>
@@ -157,7 +176,7 @@ export default function Marketplace() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-500">Price per kWh</p>
-                      <p className="text-xl font-bold text-primary">₦{listing.price_per_kwh}</p>
+                      <p className="text-xl font-bold text-primary">₦{listing.price_per_kwh_ngn}</p>
                     </div>
                   </div>
                   <div className="border-t pt-4 mb-4">
@@ -167,7 +186,7 @@ export default function Marketplace() {
                     </div>
                     <div className="flex justify-between text-sm mt-1">
                       <span className="text-gray-500">Location:</span>
-                      <span>{listing.location}</span>
+                      <span>{listing.location || 'Nigeria'}</span>
                     </div>
                   </div>
                   <button
