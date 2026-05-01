@@ -6,23 +6,24 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
-import { createClient } from '@/lib/supabase/client'
+import { db } from '@/lib/firebase/config'
+import { doc, getDoc, updateDoc } from 'firebase/firestore'
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/auth/signin')
-  }, [status, router])
+    if (sessionStatus === 'unauthenticated') router.push('/auth/signin')
+  }, [sessionStatus, router])
 
   useEffect(() => {
     if (session?.user) {
@@ -31,22 +32,28 @@ export default function ProfilePage() {
   }, [session])
 
   const fetchProfile = async () => {
-    setLoading(true)
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session?.user?.id)
-      .single()
+    if (!session?.user?.id) return
 
-    if (data) {
-      setFullName(data.full_name || '')
-      setPhone(data.phone || '')
-      setAddress(data.address || '')
-      setCity(data.city || '')
-      setState(data.state || '')
+    try {
+      const userRef = doc(db, 'profiles', session.user.id)
+      const userSnap = await getDoc(userRef)
+
+      if (userSnap.exists()) {
+        const data = userSnap.data()
+        setFullName(data.full_name || '')
+        setPhone(data.phone || '')
+        setAddress(data.address || '')
+        setCity(data.city || '')
+        setState(data.state || '')
+      } else {
+        // Set default values from session
+        setFullName(session.user.email?.split('@')[0] || '')
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,25 +61,25 @@ export default function ProfilePage() {
     setSaving(true)
     setMessage('')
 
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: fullName,
-        phone,
-        address,
-        city,
-        state,
-      })
-      .eq('id', session?.user?.id)
+    if (!session?.user?.id) return
 
-    if (error) {
-      setMessage(`Error: ${error.message}`)
-    } else {
+    try {
+      const userRef = doc(db, 'profiles', session.user.id)
+      await updateDoc(userRef, {
+        full_name: fullName,
+        phone: phone,
+        address: address,
+        city: city,
+        state: state,
+        updatedAt: new Date().toISOString(),
+      })
       setMessage('Profile updated successfully!')
       setTimeout(() => setMessage(''), 3000)
+    } catch (error: any) {
+      setMessage(`Error: ${error.message}`)
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   if (loading) {
@@ -185,6 +192,11 @@ export default function ProfilePage() {
                   <option value="Rivers">Rivers</option>
                   <option value="Ogun">Ogun</option>
                   <option value="Oyo">Oyo</option>
+                  <option value="Delta">Delta</option>
+                  <option value="Edo">Edo</option>
+                  <option value="Kano">Kano</option>
+                  <option value="Kaduna">Kaduna</option>
+                  <option value="Enugu">Enugu</option>
                 </select>
               </div>
             </div>
