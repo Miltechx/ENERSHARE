@@ -77,4 +77,95 @@ export default function History() {
               <Logo variant="compact" />
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="text-gray-600 hover:text-primary
+              <Link href="/dashboard" className="text-gray-600 hover:text-primary">Dashboard</Link>
+              <Link href="/marketplace" className="text-gray-600 hover:text-primary">Marketplace</Link>
+              <Link href="/dashboard/history" className="text-primary font-semibold">History</Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <p className="text-gray-500 text-sm">Total Earned</p>
+            <p className="text-2xl font-bold text-green-600">₦{totalEarned.toLocaleString()}</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <p className="text-gray-500 text-sm">Total Spent</p>
+            <p className="text-2xl font-bold text-red-600">₦{totalSpent.toLocaleString()}</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <p className="text-gray-500 text-sm">Platform Fees</p>
+            <p className="text-2xl font-bold text-blue-600">₦{totalFees.toLocaleString()}</p>
+          </div>
+        </div>
+
+        <div className="flex space-x-2 mb-6">
+          {['all', 'bought', 'sold'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-lg transition capitalize ${
+                filter === f ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {f === 'all' ? 'All' : f}
+            </button>
+          ))}
+        </div>
+
+        {transactions.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-md p-12 text-center">
+            <Icons.Trade className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No transactions yet</h3>
+            <p className="text-gray-500">Start trading energy on the marketplace!</p>
+            <Link href="/marketplace" className="inline-block mt-4 text-primary hover:underline">
+              Go to Marketplace →
+            </Link>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Date</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Type</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Amount</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Price/kWh</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Total</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.map((tx) => (
+                  <tr key={tx.id} className="border-b hover:bg-gray-50 transition">
+                    <td className="py-4 px-6 text-sm text-gray-600">
+                      {new Date(tx.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`text-sm font-semibold ${tx.buyer_name ? 'text-red-600' : 'text-green-600'}`}>
+                        {tx.buyer_name ? 'BOUGHT' : 'SOLD'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-sm font-semibold">{tx.amount_kwh} kWh</td>
+                    <td className="py-4 px-6 text-sm">₦{tx.price_per_kwh_ngn}</td>
+                    <td className="py-4 px-6 text-sm font-semibold">₦{tx.total_amount.toLocaleString()}</td>
+                    <td className="py-4 px-6">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        tx.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        tx.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {tx.status.toUpperCase()}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
