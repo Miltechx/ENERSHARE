@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { createClient } from "@/lib/supabase/server"
+import { db } from "@/lib/firebase/config"
+import { collection, addDoc, Timestamp } from "firebase/firestore"
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession()
@@ -11,18 +12,23 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { transaction_id, reason } = body
 
-  const supabase = createClient()
-
-  const { error } = await supabase.from("disputes").insert({
-    transaction_id,
-    raised_by: session.user.id,
-    reason,
-    status: "open",
-  })
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!transaction_id || !reason) {
+    return NextResponse.json({ error: "Transaction ID and reason required" }, { status: 400 })
   }
 
-  return NextResponse.json({ success: true })
+  try {
+    const disputeRef = collection(db, "disputes")
+    const docRef = await addDoc(disputeRef, {
+      transaction_id,
+      raised_by: session.user.id,
+      reason,
+      status: "open",
+      created_at: Timestamp.now(),
+    })
+
+    return NextResponse.json({ success: true, dispute_id: docRef.id })
+  } catch (error) {
+    console.error("Create dispute error:", error)
+    return NextResponse.json({ error: "Failed to create dispute" }, { status: 500 })
+  }
 }
