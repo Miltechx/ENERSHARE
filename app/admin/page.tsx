@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
-import { createClient } from '@/lib/supabase/client'
+import { db } from '@/lib/firebase/config'
+import { collection, getDocs, query, where, doc, updateDoc, getDoc } from 'firebase/firestore'
 
 interface AdminStats {
   totalUsers: number
@@ -47,28 +48,41 @@ export default function AdminPage() {
   }, [session])
 
   const checkAdmin = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', session?.user?.id)
-      .single()
-    
-    if (data?.is_admin) {
-      setIsAdmin(true)
-      fetchStats()
-      fetchUsers()
-    } else {
+    if (!session?.user?.id) return
+
+    try {
+      const userRef = doc(db, 'users', session.user.id)
+      const userSnap = await getDoc(userRef)
+      const userData = userSnap.data()
+      
+      if (userData?.is_admin) {
+        setIsAdmin(true)
+        fetchStats()
+        fetchUsers()
+      } else {
+        router.push('/dashboard')
+      }
+    } catch (error) {
+      console.error('Error checking admin:', error)
       router.push('/dashboard')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/admin/stats')
-      const data = await res.json()
-      setStats(data)
+      const usersSnapshot = await getDocs(collection(db, 'users'))
+      const transactionsSnapshot = await getDocs(collection(db, 'transactions'))
+      const listingsSnapshot = await getDocs(query(collection(db, 'energy_listings'), where('listing_status', '==', 'available')))
+      
+      const totalUsers = usersSnapshot.size
+      const totalTransactions = transactionsSnapshot.size
+      const totalVolume = transactionsSnapshot.docs.reduce((sum, doc) => sum + (doc.data().total_amount || 0), 0)
+      const totalFees = transactionsSnapshot.docs.reduce((sum, doc) => sum + (doc.data().fee_ngn || 0), 0)
+      const activeListings = listingsSnapshot.size
+
+      setStats({ totalUsers, totalTransactions, totalVolume, totalFees, activeListings })
     } catch (error) {
       console.error('Error fetching stats:', error)
     }
@@ -76,21 +90,22 @@ export default function AdminPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/admin/users')
-      const data = await res.json()
-      setUsers(Array.isArray(data) ? data : [])
+      const usersSnapshot = await getDocs(collection(db, 'users'))
+      const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[]
+      setUsers(usersData)
     } catch (error) {
       console.error('Error fetching users:', error)
     }
   }
 
   const approveUser = async (userId: string) => {
-    await fetch('/api/admin/approve-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId }),
-    })
-    fetchUsers()
+    try {
+      const userRef = doc(db, 'users', userId)
+      await updateDoc(userRef, { is_approved: true })
+      fetchUsers()
+    } catch (error) {
+      console.error('Error approving user:', error)
+    }
   }
 
   if (loading) {
@@ -197,7 +212,7 @@ export default function AdminPage() {
                     <tr key={user.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-6 font-medium">{user.full_name}</td>
                       <td className="py-3 px-6 text-gray-600">{user.email}</td>
-                      <td className="py-3 px-6">₦{user.wallet_balance.toLocaleString()}</td>
+                      <td className="py-3 px-6">₦{user.wallet_balance?.toLocaleString() || 0}</td>
                       <td className="py-3 px-6">
                         <span className={`px-2 py-1 rounded-full text-xs ${user.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                           {user.is_approved ? 'Approved' : 'Pending'}
