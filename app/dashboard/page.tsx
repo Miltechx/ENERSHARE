@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
+import { db } from '@/lib/firebase/config'
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 
 interface DashboardData {
   wallet_balance: number
@@ -34,34 +36,49 @@ export default function Dashboard() {
   }, [session])
 
   const fetchDashboardData = async () => {
-    try {
-      const [walletRes, listingsRes, transactionsRes, meterRes] = await Promise.all([
-        fetch('/api/user/wallet'),
-        fetch('/api/energy/listings'),
-        fetch('/api/user/transactions'),
-        fetch('/api/meter/reading'),
-      ])
+    if (!session?.user?.id) return
 
-      const wallet = await walletRes.json()
-      const listings = await listingsRes.json()
-      const transactions = await transactionsRes.json()
+    try {
+      // Get wallet
+      const walletRef = doc(db, 'wallets', session.user.id)
+      const walletSnap = await getDoc(walletRef)
+      const wallet = walletSnap.exists() ? walletSnap.data() : { demo_credits: 5000, balance_ngn: 0 }
+
+      // Get listings
+      const listingsRef = collection(db, 'energy_listings')
+      const q = query(listingsRef, where('listing_status', '==', 'available'))
+      const listingsSnap = await getDocs(q)
+      const listings = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+      // Get transactions
+      const transactionsRef = collection(db, 'transactions')
+      const txQuery = query(transactionsRef, orderBy('createdAt', 'desc'))
+      const txSnap = await getDocs(txQuery)
+      const allTransactions = txSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      
+      const userTransactions = allTransactions.filter(
+        t => t.buyer_id === session.user.id || t.seller_id === session.user.id
+      )
+
+      // Get meter data
+      const meterRes = await fetch('/api/meter/reading')
       const meter = await meterRes.json()
 
       // Calculate totals
-      const soldTransactions = transactions.filter((t: any) => t.seller_id === session?.user?.id && t.tx_status === 'completed')
-      const totalEnergySold = soldTransactions.reduce((sum: number, t: any) => sum + (t.amount_kwh || 0), 0)
-      const totalEarned = soldTransactions.reduce((sum: number, t: any) => sum + (t.total_amount - (t.fee_ngn || 0)), 0)
-      const activeListings = listings.filter((l: any) => l.listing_status === 'available').length
-      const demoCredits = wallet.demo_credits || 5000
-      const realBalance = wallet.balance_ngn || 0
+      const soldTransactions = userTransactions.filter(
+        t => t.seller_id === session.user?.id && t.tx_status === 'completed'
+      )
+      const totalEnergySold = soldTransactions.reduce((sum, t) => sum + (t.amount_kwh || 0), 0)
+      const totalEarned = soldTransactions.reduce((sum, t) => sum + (t.total_amount - (t.fee_ngn || 0)), 0)
+      const activeListings = listings.filter(l => l.listing_status === 'available').length
 
       setData({
-        wallet_balance: realBalance,
-        demo_credits: demoCredits,
+        wallet_balance: wallet.balance_ngn || 0,
+        demo_credits: wallet.demo_credits || 5000,
         total_energy_sold: totalEnergySold,
         total_earned: totalEarned,
         active_listings: activeListings,
-        recent_transactions: transactions.slice(0, 5),
+        recent_transactions: userTransactions.slice(0, 5),
         meter_data: meter,
       })
     } catch (error) {
@@ -234,7 +251,9 @@ export default function Dashboard() {
                     <p className={`font-bold ${tx.seller_id === session?.user?.id ? 'text-green-600' : 'text-red-600'}`}>
                       {tx.seller_id === session?.user?.id ? '+' : '-'}₦{tx.total_amount?.toLocaleString() || 0}
                     </p>
-                    <p className="text-xs text-gray-400">{tx.createdAt ? new Date(tx.createdAt.toDate()).toLocaleDateString() : 'Just now'}</p>
+                    <p className="text-xs text-gray-400">
+                      {tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : 'Just now'}
+                    </p>
                   </div>
                 </div>
               ))}
