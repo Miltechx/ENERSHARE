@@ -6,17 +6,21 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Logo } from '@/components/Logo'
 import { Icons } from '@/components/icons'
+import { db } from '@/lib/firebase/config'
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
 
 interface Transaction {
   id: string
+  buyer_id: string
+  seller_id: string
   buyer_name?: string
   seller_name?: string
   amount_kwh: number
   price_per_kwh_ngn: number
   total_amount: number
   fee_ngn: number
-  status: string
-  created_at: string
+  tx_status: string
+  createdAt: any
 }
 
 export default function History() {
@@ -37,10 +41,27 @@ export default function History() {
   }, [session, filter])
 
   const fetchTransactions = async () => {
+    if (!session?.user?.id) return
+
     try {
-      const res = await fetch(`/api/user/transactions?type=${filter}`)
-      const data = await res.json()
-      setTransactions(Array.isArray(data) ? data : [])
+      const transactionsRef = collection(db, 'transactions')
+      let q: any = query(transactionsRef, orderBy('createdAt', 'desc'))
+      
+      const snapshot = await getDocs(q)
+      let allTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]
+      
+      // Filter client-side based on type
+      if (filter === 'bought') {
+        allTransactions = allTransactions.filter(t => t.buyer_id === session.user?.id)
+      } else if (filter === 'sold') {
+        allTransactions = allTransactions.filter(t => t.seller_id === session.user?.id)
+      } else {
+        allTransactions = allTransactions.filter(t => 
+          t.buyer_id === session.user?.id || t.seller_id === session.user?.id
+        )
+      }
+      
+      setTransactions(allTransactions)
     } catch (error) {
       console.error('Error fetching transactions:', error)
     } finally {
@@ -49,15 +70,15 @@ export default function History() {
   }
 
   const totalEarned = transactions
-    .filter(t => t.status === 'completed' && t.seller_name)
+    .filter(t => t.tx_status === 'completed' && t.seller_id === session?.user?.id)
     .reduce((sum, t) => sum + (t.total_amount - t.fee_ngn), 0)
 
   const totalSpent = transactions
-    .filter(t => t.status === 'completed' && t.buyer_name)
+    .filter(t => t.tx_status === 'completed' && t.buyer_id === session?.user?.id)
     .reduce((sum, t) => sum + t.total_amount, 0)
 
   const totalFees = transactions
-    .filter(t => t.status === 'completed')
+    .filter(t => t.tx_status === 'completed')
     .reduce((sum, t) => sum + t.fee_ngn, 0)
 
   if (loading) {
@@ -126,43 +147,45 @@ export default function History() {
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Date</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Type</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Amount</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Price/kWh</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Total</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id} className="border-b hover:bg-gray-50 transition">
-                    <td className="py-4 px-6 text-sm text-gray-600">
-                      {new Date(tx.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className={`text-sm font-semibold ${tx.buyer_name ? 'text-red-600' : 'text-green-600'}`}>
-                        {tx.buyer_name ? 'BOUGHT' : 'SOLD'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-sm font-semibold">{tx.amount_kwh} kWh</td>
-                    <td className="py-4 px-6 text-sm">₦{tx.price_per_kwh_ngn}</td>
-                    <td className="py-4 px-6 text-sm font-semibold">₦{tx.total_amount.toLocaleString()}</td>
-                    <td className="py-4 px-6">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        tx.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        tx.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {tx.status.toUpperCase()}
-                      </span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Date</th>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Type</th>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Amount</th>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Price/kWh</th>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Total</th>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {transactions.map((tx) => (
+                    <tr key={tx.id} className="border-b hover:bg-gray-50 transition">
+                      <td className="py-4 px-6 text-sm text-gray-600">
+                        {tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className={`text-sm font-semibold ${tx.buyer_id === session?.user?.id ? 'text-red-600' : 'text-green-600'}`}>
+                          {tx.buyer_id === session?.user?.id ? 'BOUGHT' : 'SOLD'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-sm font-semibold">{tx.amount_kwh} kWh</td>
+                      <td className="py-4 px-6 text-sm">₦{tx.price_per_kwh_ngn}</td>
+                      <td className="py-4 px-6 text-sm font-semibold">₦{tx.total_amount.toLocaleString()}</td>
+                      <td className="py-4 px-6">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          tx.tx_status === 'completed' ? 'bg-green-100 text-green-700' :
+                          tx.tx_status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {tx.tx_status?.toUpperCase() || 'PENDING'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
