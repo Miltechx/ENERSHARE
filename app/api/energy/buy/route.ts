@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { db } from "@/lib/firebase/config"
-import { doc, getDoc, updateDoc, addDoc, collection, Timestamp, runTransaction } from "firebase/firestore"
+import { adminDb } from "@/lib/firebase/admin"
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession()
@@ -17,81 +19,53 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Use transaction for atomic operation
-    const result = await runTransaction(db, async (transaction) => {
+    const result = await adminDb.runTransaction(async (transaction) => {
       // Get listing
-      const listingRef = doc(db, "energy_listings", listing_id)
-      const listingSnap = await transaction.get(listingRef)
-      
-      if (!listingSnap.exists()) {
+      const listingRef = adminDb.collection("energy_listings").doc(listing_id)
+      const listingDoc = await transaction.get(listingRef)
+
+      if (!listingDoc.exists) {
         throw new Error("Listing not found")
       }
-      
-      const listing = listingSnap.data()
-      
+
+      const listing = listingDoc.data()
+
       if (listing.listing_status !== "available") {
         throw new Error("Listing not available")
       }
-      
+
       // Get buyer's wallet
-      const walletRef = doc(db, "wallets", session.user.id)
-      const walletSnap = await transaction.get(walletRef)
-      
-      let buyerCredits = 5000 // default demo credits
-      if (walletSnap.exists()) {
-        buyerCredits = walletSnap.data().demo_credits || 5000
-      }
-      
+      const buyerWalletRef = adminDb.collection("wallets").doc(session.user.id)
+      const buyerWalletDoc = await transaction.get(buyerWalletRef)
+      const buyerBalance = buyerWalletDoc.exists ? (buyerWalletDoc.data()?.balance_ngn || 0) : 0
+
       const totalPrice = listing.amount_kwh * listing.price_per_kwh_ngn
-      
-      if (buyerCredits < totalPrice) {
+
+      if (buyerBalance < totalPrice) {
         throw new Error("Insufficient funds")
       }
-      
-      // Calculate fee (2%)
+
       const fee = totalPrice * 0.02
-      
-      // Update buyer's wallet
-      if (walletSnap.exists()) {
-        transaction.update(walletRef, {
-          demo_credits: buyerCredits - totalPrice,
-          updatedAt: Timestamp.now()
-        })
-      } else {
-        transaction.set(walletRef, {
-          user_id: session.user.id,
-          demo_credits: 5000 - totalPrice,
-          balance_ngn: 0,
-          createdAt: Timestamp.now()
-        })
-      }
-      
-      // Update seller's wallet
-      const sellerWalletRef = doc(db, "wallets", listing.seller_id)
-      const sellerWalletSnap = await transaction.get(sellerWalletRef)
-      let sellerCredits = 0
-      if (sellerWalletSnap.exists()) {
-        sellerCredits = sellerWalletSnap.data().demo_credits || 0
-      }
-      
-      if (sellerWalletSnap.exists()) {
-        transaction.update(sellerWalletRef, {
-          demo_credits: sellerCredits + (totalPrice - fee),
-          updatedAt: Timestamp.now()
-        })
-      } else {
-        transaction.set(sellerWalletRef, {
-          user_id: listing.seller_id,
-          demo_credits: totalPrice - fee,
-          balance_ngn: 0,
-          createdAt: Timestamp.now()
-        })
-      }
-      
+
+      // Update buyer wallet
+      transaction.update(buyerWalletRef, {
+        balance_ngn: buyerBalance - totalPrice,
+        updatedAt: new Date().toISOString(),
+      })
+
+      // Update seller wallet
+      const sellerWalletRef = adminDb.collection("wallets").doc(listing.seller_id)
+      const sellerWalletDoc = await transaction.get(sellerWalletRef)
+      const sellerBalance = sellerWalletDoc.exists ? (sellerWalletDoc.data()?.balance_ngn || 0) : 0
+
+      transaction.update(sellerWalletRef, {
+        balance_ngn: sellerBalance + (totalPrice - fee),
+        updatedAt: new Date().toISOString(),
+      })
+
       // Create transaction record
-      const transactionsRef = collection(db, "transactions")
-      const txRef = doc(transactionsRef)
-      transaction.set(txRef, {
+      const transactionRef = adminDb.collection("transactions").doc()
+      transaction.set(transactionRef, {
         buyer_id: session.user.id,
         seller_id: listing.seller_id,
         listing_id: listing_id,
@@ -101,25 +75,71 @@ export async function POST(request: NextRequest) {
         total_amount: totalPrice,
         fee_ngn: fee,
         tx_status: "completed",
-        createdAt: Timestamp.now()
+        createdAt: new Date().toISOString(),
       })
-      
+
       // Mark listing as sold
       transaction.update(listingRef, {
         listing_status: "sold",
-        updatedAt: Timestamp.now()
+        sold_to: session.user.id,
+        sold_at: new Date().toISOString(),
       })
-      
+
       return {
-        success: true,
-        transaction_id: txRef.id,
+        transaction_id: transactionRef.id,
         amount: listing.amount_kwh,
         total: totalPrice,
-        fee: fee
+        fee: fee,
+        seller_id: listing.seller_id,
+        seller_name: listing.seller_name,
+        buyer_name: session.user.email,
       }
     })
-    
-    return NextResponse.json(result)
+
+    // Send email notifications
+    try {
+      // Get buyer email
+      const buyerUser = await adminDb.collection("profiles").doc(session.user.id).get()
+      const buyerEmail = buyerUser.data()?.email || session.user.email
+
+      // Get seller email
+      const sellerUser = await adminDb.collection("profiles").doc(result.seller_id).get()
+      const sellerEmail = sellerUser.data()?.email
+
+      // Email to buyer
+      await resend.emails.send({
+        from: 'EnerShare <noreply@enershare.com>',
+        to: buyerEmail,
+        subject: 'Energy Purchase Confirmed - EnerShare',
+        html: `
+          <h1>Purchase Confirmed ✅</h1>
+          <p>You purchased ${result.amount} kWh of energy.</p>
+          <p>Total: ₦${result.total.toLocaleString()}</p>
+          <p>Fee: ₦${result.fee.toLocaleString()}</p>
+          <a href="${process.env.NEXTAUTH_URL}/dashboard">View Dashboard</a>
+        `,
+      })
+
+      // Email to seller
+      if (sellerEmail) {
+        await resend.emails.send({
+          from: 'EnerShare <noreply@enershare.com>',
+          to: sellerEmail,
+          subject: 'Energy Sold - EnerShare',
+          html: `
+            <h1>Energy Sold! ⚡</h1>
+            <p>${result.buyer_name} purchased ${result.amount} kWh from you.</p>
+            <p>Total: ₦${result.total.toLocaleString()}</p>
+            <p>After fee: ₦{(result.total - result.fee).toLocaleString()}</p>
+            <a href="${process.env.NEXTAUTH_URL}/dashboard">View Dashboard</a>
+          `,
+        })
+      }
+    } catch (emailError) {
+      console.error("Email send failed:", emailError)
+    }
+
+    return NextResponse.json({ success: true, ...result })
   } catch (error: any) {
     console.error("Buy error:", error)
     return NextResponse.json({ error: error.message || "Purchase failed" }, { status: 500 })

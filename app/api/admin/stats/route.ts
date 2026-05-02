@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { db } from "@/lib/firebase/config"
-import { collection, getDocs, query, where } from "firebase/firestore"
+import { adminDb } from "@/lib/firebase/admin"
 
 export async function GET() {
   const session = await getServerSession()
@@ -9,32 +8,27 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  try {
-    // Get total users
-    const usersSnapshot = await getDocs(collection(db, "profiles"))
-    const totalUsers = usersSnapshot.size
-
-    // Get transactions
-    const transactionsSnapshot = await getDocs(collection(db, "transactions"))
-    const transactions = transactionsSnapshot.docs.map(doc => doc.data())
-    const totalTransactions = transactions.length
-    const totalVolume = transactions.reduce((sum, t) => sum + (t.total_amount || 0), 0)
-    const totalFees = transactions.reduce((sum, t) => sum + (t.fee_ngn || 0), 0)
-
-    // Get active listings
-    const listingsQuery = query(collection(db, "energy_listings"), where("listing_status", "==", "available"))
-    const listingsSnapshot = await getDocs(listingsQuery)
-    const activeListings = listingsSnapshot.size
-
-    return NextResponse.json({
-      totalUsers,
-      totalTransactions,
-      totalVolume,
-      totalFees,
-      activeListings,
-    })
-  } catch (error) {
-    console.error("Stats error:", error)
-    return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 })
+  // Check if user is admin
+  const userDoc = await adminDb.collection("profiles").doc(session.user.id).get()
+  if (!userDoc.exists || !userDoc.data()?.is_admin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
+
+  const usersSnapshot = await adminDb.collection("profiles").count().get()
+  const transactionsSnapshot = await adminDb.collection("transactions").get()
+  const listingsSnapshot = await adminDb.collection("energy_listings").where("listing_status", "==", "available").get()
+  const withdrawalsSnapshot = await adminDb.collection("withdrawals").where("status", "==", "pending").get()
+
+  const transactions = transactionsSnapshot.docs.map(doc => doc.data())
+  const totalVolume = transactions.reduce((sum, t) => sum + (t.total_amount || 0), 0)
+  const totalFees = transactions.reduce((sum, t) => sum + (t.fee_ngn || 0), 0)
+
+  return NextResponse.json({
+    totalUsers: usersSnapshot.data().count,
+    totalTransactions: transactionsSnapshot.size,
+    totalVolume,
+    totalFees,
+    activeListings: listingsSnapshot.size,
+    pendingWithdrawals: withdrawalsSnapshot.size,
+  })
 }
