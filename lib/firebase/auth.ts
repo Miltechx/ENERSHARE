@@ -1,4 +1,4 @@
-import { auth } from "./config"
+import { auth } from './config'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -7,7 +7,7 @@ import {
   onAuthStateChanged,
   User,
   updateProfile,
-} from "firebase/auth"
+} from 'firebase/auth'
 
 export const signUp = async (email: string, password: string, fullName: string) => {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password)
