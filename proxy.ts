@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server"
 // Rate limiting store (in production, use Redis)
 const rateLimit = new Map()
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const response = NextResponse.next()
 
   // Security headers
