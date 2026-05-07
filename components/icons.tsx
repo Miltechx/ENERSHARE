@@ -1,5 +1,4 @@
 export const Icons = {
-  // Existing icons (keep all)
   Lightning: ({ className = "w-6 h-6" }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
@@ -57,14 +56,6 @@ export const Icons = {
     </svg>
   ),
   
-  Carbon: ({ className = "w-6 h-6" }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C8.13 2 5 5.13 5 9C5 12.87 12 21 12 21C12 21 19 12.87 19 9C19 5.13 15.87 2 12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
-      <circle cx="12" cy="9" r="3" stroke="currentColor" strokeWidth="2" fill="none"/>
-      <path d="M12 2V4M12 20V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-  ),
-  
   User: ({ className = "w-6 h-6" }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2" fill="none"/>
@@ -72,32 +63,23 @@ export const Icons = {
     </svg>
   ),
   
-  Star: ({ className = "w-5 h-5" }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+  Check: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
     </svg>
   ),
   
-  CheckCircle: ({ className = "w-5 h-5" }) => (
+  ArrowRight: ({ className = "w-6 h-6" }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2"/>
-      <path d="M8 12L11 15L16 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
     </svg>
   ),
   
-  ArrowRight: ({ className = "w-5 h-5" }) => (
+  Carbon: ({ className = "w-6 h-6" }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 2C8.13 2 5 5.13 5 9C5 12.87 12 21 12 21C12 21 19 12.87 19 9C19 5.13 15.87 2 12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+      <circle cx="12" cy="9" r="3" stroke="currentColor" strokeWidth="2" fill="none"/>
+      <path d="M12 2V4M12 20V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
   ),
-  
-  Check: ({ className = "w-5 h-5" }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 74fb2ebd16d94255088639c16fce612e2408c365
