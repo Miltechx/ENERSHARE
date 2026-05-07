@@ -42,13 +42,13 @@ export async function POST(request: NextRequest) {
       listing_status: "available",
       createdAt: Timestamp.now(),
     })
-    
-    return NextResponse.json({ 
-      id: docRef.id, 
+
+    return NextResponse.json({
+      id: docRef.id,
       success: true,
       amount_kwh,
       price_per_kwh_ngn,
-      total_price: amount_kwh * price_per_kwh_ngn
+      total_price: amount_kwh * price_per_kwh_ngn,
     })
   } catch (error) {
     console.error("POST listing error:", error)

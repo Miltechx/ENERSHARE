@@ -12,22 +12,20 @@ export async function GET() {
   try {
     const walletRef = doc(db, "wallets", session.user.id)
     const walletSnap = await getDoc(walletRef)
-    
+
     if (walletSnap.exists()) {
       return NextResponse.json(walletSnap.data())
     } else {
-      // Create default wallet
       const defaultWallet = {
         user_id: session.user.id,
-        demo_credits: 5000,
-        balance_ngn: 0,
-        createdAt: new Date().toISOString()
+        balance_ngn: 5000,
+        createdAt: new Date().toISOString(),
       }
       await setDoc(walletRef, defaultWallet)
       return NextResponse.json(defaultWallet)
     }
   } catch (error) {
     console.error("Wallet error:", error)
-    return NextResponse.json({ demo_credits: 5000, balance_ngn: 0 })
+    return NextResponse.json({ balance_ngn: 5000 })
   }
 }
