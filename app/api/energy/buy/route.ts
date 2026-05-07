@@ -33,7 +33,11 @@ export async function POST(request: NextRequest) {
 
       const buyerWalletRef = doc(db, "wallets", session.user.id)
       const buyerWalletSnap = await transaction.get(buyerWalletRef)
+<<<<<<< HEAD
       const buyerBalance = buyerWalletSnap.exists() ? (buyerWalletSnap.data().balance_ngn || 0) : 5000
+=======
+      const buyerBalance = buyerWalletSnap.exists() ? (buyerWalletSnap.data().balance_ngn || 0) : 0
+>>>>>>> 74fb2ebd16d94255088639c16fce612e2408c365
 
       const totalPrice = listing.amount_kwh * listing.price_per_kwh_ngn
 
@@ -46,7 +50,11 @@ export async function POST(request: NextRequest) {
       if (buyerWalletSnap.exists()) {
         transaction.update(buyerWalletRef, { balance_ngn: buyerBalance - totalPrice, updatedAt: Timestamp.now() })
       } else {
+<<<<<<< HEAD
         transaction.set(buyerWalletRef, { user_id: session.user.id, balance_ngn: 5000 - totalPrice, createdAt: Timestamp.now() })
+=======
+        transaction.set(buyerWalletRef, { user_id: session.user.id, balance_ngn: 5000 - totalPrice, demo_credits: 0, createdAt: Timestamp.now() })
+>>>>>>> 74fb2ebd16d94255088639c16fce612e2408c365
       }
 
       const sellerWalletRef = doc(db, "wallets", listing.seller_id)
@@ -56,7 +64,11 @@ export async function POST(request: NextRequest) {
       if (sellerWalletSnap.exists()) {
         transaction.update(sellerWalletRef, { balance_ngn: sellerBalance + (totalPrice - fee), updatedAt: Timestamp.now() })
       } else {
+<<<<<<< HEAD
         transaction.set(sellerWalletRef, { user_id: listing.seller_id, balance_ngn: totalPrice - fee, createdAt: Timestamp.now() })
+=======
+        transaction.set(sellerWalletRef, { user_id: listing.seller_id, balance_ngn: totalPrice - fee, demo_credits: 0, createdAt: Timestamp.now() })
+>>>>>>> 74fb2ebd16d94255088639c16fce612e2408c365
       }
 
       const transactionsRef = collection(db, "transactions")

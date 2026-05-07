@@ -96,4 +96,8 @@ export const Icons = {
       <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 74fb2ebd16d94255088639c16fce612e2408c365
