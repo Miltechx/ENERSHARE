@@ -3,14 +3,16 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Logo } from "@/components/Logo"
-import { signUp } from "@/lib/firebase/auth"
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
+import { app } from "@/lib/firebase/config"
+
+const auth = getAuth(app)
 
 export default function SignUp() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [fullName, setFullName] = useState("")
+  const [name, setName] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -20,77 +22,56 @@ export default function SignUp() {
     setError("")
 
     try {
-      await signUp(email, password, fullName)
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      await updateProfile(userCredential.user, { displayName: name })
       router.push("/auth/signin?registered=true")
-    } catch (error: any) {
-      console.error("Signup error:", error)
-      if (error.code === 'auth/email-already-in-use') {
-        setError("Email already in use. Please sign in.")
-      } else if (error.code === 'auth/weak-password') {
-        setError("Password should be at least 6 characters")
-      } else {
-        setError(error.message || "Failed to create account")
-      }
+    } catch (err: any) {
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center mb-8">
-          <Logo variant="compact" className="justify-center" />
-          <h1 className="text-2xl font-bold mt-4">Create Account</h1>
-          <p className="text-gray-500 text-sm mt-1">Join the energy revolution</p>
-        </div>
-        
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-lg shadow-md w-96">
+        <h1 className="text-2xl font-bold mb-6 text-center">Sign Up</h1>
+        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        <form onSubmit={handleSubmit}>
           <input
             type="text"
-            placeholder="Full name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full p-2 border rounded mb-4"
             required
           />
           <input
             type="email"
-            placeholder="Email address"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full p-2 border rounded mb-4"
             required
           />
           <input
             type="password"
-            placeholder="Password (min 6 characters)"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full p-2 border rounded mb-4"
             required
-            minLength={6}
           />
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition disabled:opacity-50"
+            className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700"
           >
             {loading ? "Creating account..." : "Sign Up"}
           </button>
         </form>
-        
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Already have an account?{" "}
-          <Link href="/auth/signin" className="text-primary hover:underline">
-            Sign in
-          </Link>
+        <p className="text-center text-sm mt-4">
+          Already have an account? <Link href="/auth/signin" className="text-green-600">Sign in</Link>
         </p>
       </div>
     </div>
