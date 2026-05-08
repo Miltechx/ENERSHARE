@@ -1,20 +1,15 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
-import { AuthProvider } from '@/components/AuthProvider'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'EnerShare - Peer-to-Peer Energy Trading Platform | Nigeria & Pan-Africa',
-  description: 'EnerShare enables households, businesses, and microgrid operators to buy, sell, store, and transfer electricity units in real-time across Nigeria and Pan-Africa.',
-  keywords: 'energy trading, P2P energy, solar trading, Nigeria energy, renewable energy, microgrid',
-  authors: [{ name: 'EnerShare' }],
-  viewport: 'width=device-width, initial-scale=1',
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
-  },
+  title: 'EnerShare',
+  description: 'Peer-to-Peer Energy Trading Platform',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({
@@ -24,11 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </body>
+      <body>{children}</body>
     </html>
   )
 }
