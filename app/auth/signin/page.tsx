@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from "react"
 import { signIn } from "next-auth/react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Logo } from "@/components/Logo"
 
 export default function SignIn() {
   const router = useRouter()
@@ -33,27 +32,17 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
-        <div className="text-center mb-8">
-          <Logo variant="compact" className="justify-center" />
-          <h1 className="text-2xl font-bold mt-4">Welcome Back</h1>
-          <p className="text-gray-500 text-sm mt-1">Sign in to your EnerShare account</p>
-        </div>
-        
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-lg shadow-md w-96">
+        <h1 className="text-2xl font-bold mb-6 text-center">Sign In</h1>
+        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        <form onSubmit={handleSubmit}>
           <input
             type="email"
-            placeholder="Email address"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full p-2 border rounded mb-4"
             required
           />
           <input
@@ -61,29 +50,19 @@ export default function SignIn() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full p-2 border rounded mb-4"
             required
           />
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition disabled:opacity-50"
+            className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700"
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Loading..." : "Sign In"}
           </button>
         </form>
-        
-        <div className="text-center mt-6">
-          <Link href="/auth/forgot-password" className="text-sm text-gray-500 hover:text-primary transition">
-            Forgot password?
-          </Link>
-        </div>
-        
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Don't have an account?{" "}
-          <Link href="/auth/signup" className="text-primary hover:underline">
-            Sign up
-          </Link>
+        <p className="text-center text-sm mt-4">
+          Don't have an account? <Link href="/auth/signup" className="text-green-600">Sign up</Link>
         </p>
       </div>
     </div>
