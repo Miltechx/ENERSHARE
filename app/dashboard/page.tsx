@@ -1,100 +1,101 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from 'chart.js'
-import { Line, Doughnut } from 'react-chartjs-2'
+import { useAuth } from '@/lib/auth-context'
+import { db } from '@/lib/firebase/client'
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
+import { EnergyListing, Transaction } from '@/types'
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-)
-
-interface DashboardData {
-  balance: number
-  totalSold: number
-  totalBought: number
-  totalEarned: number
+interface DashboardStats {
+  kwhBalance: number
+  nairaBalance: number
   totalSpent: number
+  totalEarned: number
   activeListings: number
-  recentTransactions: any[]
+  nearbyListings: number
 }
 
-export default function Dashboard() {
-  const { data: session, status } = useSession()
+export default function DashboardPage() {
+  const { user, profile, wallet, loading: authLoading } = useAuth()
   const router = useRouter()
-  const [data, setData] = useState<DashboardData | null>(null)
+  const [stats, setStats] = useState<DashboardStats>({
+    kwhBalance: 0,
+    nairaBalance: 0,
+    totalSpent: 0,
+    totalEarned: 0,
+    activeListings: 0,
+    nearbyListings: 0,
+  })
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([])
+  const [nearbyListings, setNearbyListings] = useState<EnergyListing[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (!authLoading && !user) {
       router.push('/auth/signin')
     }
-  }, [status, router])
+    if (!authLoading && user && !profile?.onboardingCompleted) {
+      router.push('/onboarding')
+    }
+  }, [user, authLoading, profile, router])
 
   useEffect(() => {
-    if (session?.user) {
+    if (user && wallet) {
       fetchDashboardData()
     }
-  }, [session])
+  }, [user, wallet])
 
   const fetchDashboardData = async () => {
+    if (!user || !profile) return
+
+    setLoading(true)
     try {
-      const [walletRes, listingsRes, transactionsRes] = await Promise.all([
-        fetch('/api/user/wallet'),
-        fetch('/api/energy/listings'),
-        fetch('/api/user/transactions'),
-      ])
+      // Set wallet stats
+      setStats(prev => ({
+        ...prev,
+        kwhBalance: wallet?.kwhBalance || 0,
+        nairaBalance: wallet?.nairaBalance || 0,
+        totalSpent: wallet?.totalSpent || 0,
+        totalEarned: wallet?.totalEarned || 0,
+      }))
 
-      const wallet = await walletRes.json()
-      const listings = await listingsRes.json()
-      const transactions = await transactionsRes.json()
-
-      const userTransactions = transactions.filter(
-        (t: any) => t.buyer_id === session?.user?.id || t.seller_id === session?.user?.id
+      // Fetch recent transactions
+      const transactionsRef = collection(db, 'transactions')
+      const q = query(
+        transactionsRef,
+        where('buyerId', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(5)
       )
+      const txSnapshot = await getDocs(q)
+      const transactions = txSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]
+      setRecentTransactions(transactions)
 
-      const soldTransactions = userTransactions.filter(
-        (t: any) => t.seller_id === session?.user?.id && t.tx_status === 'completed'
+      // Fetch active listings (for producers)
+      const listingsRef = collection(db, 'listings')
+      const listingsQuery = query(
+        listingsRef,
+        where('sellerId', '==', user.uid),
+        where('isActive', '==', true)
       )
-      const boughtTransactions = userTransactions.filter(
-        (t: any) => t.buyer_id === session?.user?.id && t.tx_status === 'completed'
+      const listingsSnapshot = await getDocs(listingsQuery)
+      setStats(prev => ({ ...prev, activeListings: listingsSnapshot.size }))
+
+      // Fetch nearby listings
+      const nearbyQuery = query(
+        listingsRef,
+        where('locationState', '==', profile.state),
+        where('isActive', '==', true),
+        orderBy('createdAt', 'desc'),
+        limit(3)
       )
+      const nearbySnapshot = await getDocs(nearbyQuery)
+      const nearby = nearbySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as EnergyListing[]
+      setNearbyListings(nearby)
+      setStats(prev => ({ ...prev, nearbyListings: nearby.length }))
 
-      const totalSold = soldTransactions.reduce((sum: number, t: any) => sum + t.amount_kwh, 0)
-      const totalBought = boughtTransactions.reduce((sum: number, t: any) => sum + t.amount_kwh, 0)
-      const totalEarned = soldTransactions.reduce((sum: number, t: any) => sum + (t.total_amount - t.fee_ngn), 0)
-      const totalSpent = boughtTransactions.reduce((sum: number, t: any) => sum + t.total_amount, 0)
-
-      const activeListings = listings.filter((l: any) => l.listing_status === 'available' && l.seller_id === session?.user?.id).length
-
-      setData({
-        balance: wallet.balance_ngn || 0,
-        totalSold,
-        totalBought,
-        totalEarned,
-        totalSpent,
-        activeListings,
-        recentTransactions: userTransactions.slice(0, 5),
-      })
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
@@ -102,100 +103,157 @@ export default function Dashboard() {
     }
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin text-4xl mb-4">⚡</div>
-          <p className="text-gray-500">Loading dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
       </div>
     )
   }
 
-  const chartData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [
-      {
-        label: 'Energy Generated (kWh)',
-        data: [12, 14, 11, 13, 15, 18, 16],
-        borderColor: '#00C853',
-        backgroundColor: 'rgba(0, 200, 83, 0.1)',
-        fill: true,
-      },
-      {
-        label: 'Energy Consumed (kWh)',
-        data: [10, 11, 9, 12, 13, 14, 12],
-        borderColor: '#FFD600',
-        backgroundColor: 'rgba(255, 214, 0, 0.1)',
-        fill: true,
-      },
-    ],
-  }
+  const isProducer = profile?.role === 'producer' || profile?.role === 'retailer'
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <span className="text-2xl font-bold text-green-600">⚡ EnerShare</span>
-          <div className="flex space-x-6">
-            <Link href="/dashboard" className="text-green-600 font-semibold">Dashboard</Link>
-            <Link href="/marketplace" className="text-gray-600 hover:text-green-600">Marketplace</Link>
-            <Link href="/marketplace/sell" className="bg-green-600 text-white px-4 py-2 rounded-lg">Sell Energy</Link>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-500">Welcome back, {session?.user?.email?.split('@')[0]}</p>
+          <h1 className="text-3xl font-bold text-white">
+            Welcome back, {profile?.fullName?.split(' ')[0]}
+          </h1>
+          <p className="text-gray-400 mt-1">Here's what's happening with your energy ecosystem</p>
         </div>
 
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
-            <p className="text-green-100">Wallet Balance</p>
-            <p className="text-3xl font-bold">₦{data?.balance.toLocaleString()}</p>
+          <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
+            <p className="text-green-100 text-sm">KWH BALANCE</p>
+            <p className="text-3xl font-bold text-white mt-1">{stats.kwhBalance} kWh</p>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-md">
-            <p className="text-gray-500">Energy Sold</p>
-            <p className="text-2xl font-bold text-green-600">{data?.totalSold} kWh</p>
-            <p className="text-sm text-gray-400">₦{data?.totalEarned.toLocaleString()} earned</p>
+
+          <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6">
+            <p className="text-blue-100 text-sm">NAIRA BALANCE</p>
+            <p className="text-3xl font-bold text-white mt-1">
+              ₦{stats.nairaBalance.toLocaleString()}
+            </p>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-md">
-            <p className="text-gray-500">Energy Bought</p>
-            <p className="text-2xl font-bold text-blue-600">{data?.totalBought} kWh</p>
-            <p className="text-sm text-gray-400">₦{data?.totalSpent.toLocaleString()} spent</p>
+
+          <div className="bg-gray-800 rounded-xl p-6">
+            <p className="text-gray-400 text-sm">TOTAL SPENT</p>
+            <p className="text-2xl font-bold text-white mt-1">
+              ₦{stats.totalSpent.toLocaleString()}
+            </p>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-md">
-            <p className="text-gray-500">Active Listings</p>
-            <p className="text-2xl font-bold text-purple-600">{data?.activeListings}</p>
-            <Link href="/marketplace/sell" className="text-sm text-green-600 hover:underline">+ Create new</Link>
+
+          <div className="bg-gray-800 rounded-xl p-6">
+            <p className="text-gray-400 text-sm">TOTAL EARNED</p>
+            <p className="text-2xl font-bold text-white mt-1">
+              ₦{stats.totalEarned.toLocaleString()}
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-md">
-            <h3 className="font-semibold text-gray-800 mb-4">Energy Trends</h3>
-            <Line data={chartData} options={{ responsive: true }} />
-          </div>
-          <div className="bg-white rounded-xl p-6 shadow-md">
-            <h3 className="font-semibold text-gray-800 mb-4">Recent Transactions</h3>
-            {data?.recentTransactions.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No transactions yet</p>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Link
+            href="/marketplace"
+            className="bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-lg font-semibold transition"
+          >
+            Buy Energy
+          </Link>
+          {isProducer && (
+            <Link
+              href="/listings/new"
+              className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition"
+            >
+              Create Listing
+            </Link>
+          )}
+          <Link
+            href="/wallet"
+            className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition"
+          >
+            Wallet
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Recent Transactions */}
+          <div className="bg-gray-800 rounded-xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Recent Transactions</h2>
+              <Link href="/wallet?tab=history" className="text-green-500 text-sm hover:underline">
+                View All
+              </Link>
+            </div>
+
+            {recentTransactions.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No transactions yet</p>
+                <Link href="/marketplace" className="text-green-500 text-sm hover:underline mt-2 inline-block">
+                  Start trading
+                </Link>
+              </div>
             ) : (
               <div className="space-y-3">
-                {data?.recentTransactions.map((tx: any) => (
-                  <div key={tx.id} className="flex justify-between items-center p-3 border-b">
+                {recentTransactions.map((tx) => (
+                  <div key={tx.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
                     <div>
-                      <p className="font-medium">
-                        {tx.buyer_id === session?.user?.id ? 'Bought' : 'Sold'} {tx.amount_kwh} kWh
+                      <p className="text-white font-medium">
+                        {tx.type === 'purchase' ? 'Energy Purchase' : 'Energy Sale'}
                       </p>
-                      <p className="text-sm text-gray-500">{new Date(tx.createdAt?.toDate()).toLocaleDateString()}</p>
+                      <p className="text-gray-400 text-sm">
+                        {tx.createdAt?.toDate().toLocaleDateString()}
+                      </p>
                     </div>
-                    <p className={`font-bold ${tx.buyer_id === session?.user?.id ? 'text-red-600' : 'text-green-600'}`}>
-                      {tx.buyer_id === session?.user?.id ? '-' : '+'}₦{tx.total_amount.toLocaleString()}
-                    </p>
+                    <div className="text-right">
+                      <p className={`font-semibold ${tx.type === 'purchase' ? 'text-red-400' : 'text-green-400'}`}>
+                        {tx.type === 'purchase' ? '-' : '+'}₦{tx.totalNaira.toLocaleString()}
+                      </p>
+                      {tx.kwhAmount && (
+                        <p className="text-gray-400 text-sm">{tx.kwhAmount} kWh</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Nearby Listings */}
+          <div className="bg-gray-800 rounded-xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Near You</h2>
+              <Link href="/marketplace" className="text-green-500 text-sm hover:underline">
+                View All
+              </Link>
+            </div>
+
+            {nearbyListings.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400">No active listings nearby</p>
+                {isProducer && (
+                  <Link href="/listings/new" className="text-green-500 text-sm hover:underline mt-2 inline-block">
+                    Create the first listing
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {nearbyListings.map((listing) => (
+                  <div key={listing.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                    <div>
+                      <p className="text-white font-medium">{listing.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-400 capitalize">{listing.energySource}</span>
+                        <span className="text-xs text-gray-500">•</span>
+                        <span className="text-xs text-gray-400">{listing.locationCity}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-green-400 font-semibold">₦{listing.pricePerKwh}/kWh</p>
+                      <p className="text-gray-400 text-sm">{listing.kwhAvailable} kWh left</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -203,14 +261,33 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Link href="/marketplace" className="bg-green-600 text-white text-center py-3 rounded-lg font-semibold hover:bg-green-700">
-            Buy Energy
-          </Link>
-          <Link href="/marketplace/sell" className="border-2 border-green-600 text-green-600 text-center py-3 rounded-lg font-semibold hover:bg-green-50">
-            Sell Energy
-          </Link>
-        </div>
+        {/* Producer Specific Section */}
+        {isProducer && (
+          <div className="mt-8 bg-gray-800 rounded-xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-white">Active Listings</h2>
+              <Link href="/listings/mine" className="text-green-500 text-sm hover:underline">
+                Manage Listings
+              </Link>
+            </div>
+
+            {stats.activeListings === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-400">You have no active listings</p>
+                <Link href="/listings/new" className="text-green-500 text-sm hover:underline mt-2 inline-block">
+                  Create your first listing
+                </Link>
+              </div>
+            ) : (
+              <p className="text-gray-300">
+                You have <span className="text-green-400 font-semibold">{stats.activeListings}</span> active listings.
+                <Link href="/listings/mine" className="ml-2 text-green-500 hover:underline">
+                  View and manage
+                </Link>
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

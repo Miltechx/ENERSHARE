@@ -63,9 +63,22 @@ export const Icons = {
     </svg>
   ),
   
+  Settings: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+      <path d="M19.4 15.05L18.3 15.95C18.1 16.1 18 16.35 18.05 16.6L18.2 17.85C18.25 18.15 18.05 18.45 17.75 18.5L16.55 18.75C16.3 18.8 16.1 18.95 16 19.15L15.35 20.3C15.15 20.65 14.8 20.85 14.4 20.85H13.2C12.8 20.85 12.45 20.65 12.25 20.3L11.6 19.15C11.5 18.95 11.3 18.8 11.05 18.75L9.85 18.5C9.55 18.45 9.35 18.15 9.4 17.85L9.55 16.6C9.6 16.35 9.5 16.1 9.3 15.95L8.2 15.05C7.95 14.85 7.9 14.5 8.05 14.2L8.7 13.05C8.85 12.8 8.85 12.5 8.7 12.25L8.05 11.1C7.9 10.8 7.95 10.45 8.2 10.25L9.3 9.35C9.5 9.2 9.6 8.95 9.55 8.7L9.4 7.45C9.35 7.15 9.55 6.85 9.85 6.8L11.05 6.55C11.3 6.5 11.5 6.35 11.6 6.15L12.25 5C12.45 4.65 12.8 4.45 13.2 4.45H14.4C14.8 4.45 15.15 4.65 15.35 5L16 6.15C16.1 6.35 16.3 6.5 16.55 6.55L17.75 6.8C18.05 6.85 18.25 7.15 18.2 7.45L18.05 8.7C18 8.95 18.1 9.2 18.3 9.35L19.4 10.25C19.65 10.45 19.7 10.8 19.55 11.1L18.9 12.25C18.75 12.5 18.75 12.8 18.9 13.05L19.55 14.2C19.7 14.5 19.65 14.85 19.4 15.05Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+    </svg>
+  ),
+  
   Check: ({ className = "w-6 h-6" }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    </svg>
+  ),
+  
+  Close: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
     </svg>
   ),
   
@@ -75,11 +88,48 @@ export const Icons = {
     </svg>
   ),
   
+  Star: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+    </svg>
+  ),
+  
+  Search: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  
+  Mail: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 8L12 13L21 8M5 4H19C20.1046 4 21 4.89543 21 6V18C21 19.1046 20.1046 20 19 20H5C3.89543 20 3 19.1046 3 18V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  
+  ChevronRight: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 18L15 12L9 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  
   Carbon: ({ className = "w-6 h-6" }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M12 2C8.13 2 5 5.13 5 9C5 12.87 12 21 12 21C12 21 19 12.87 19 9C19 5.13 15.87 2 12 2Z" stroke="currentColor" strokeWidth="2" fill="none"/>
       <circle cx="12" cy="9" r="3" stroke="currentColor" strokeWidth="2" fill="none"/>
       <path d="M12 2V4M12 20V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  
+  RotateLeft: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M19 7L18.1 6.1C16.9 4.8 15.1 4 13 4C8 4 4 8 4 13C4 18 8 22 13 22C18 22 22 18 22 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M19 2V7H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  
+  Menu: ({ className = "w-6 h-6" }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 12H21M3 6H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
   ),
 }
