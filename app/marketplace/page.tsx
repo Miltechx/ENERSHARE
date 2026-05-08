@@ -2,14 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/lib/auth-context'
-import { db } from '@/lib/firebase/client'
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
-import { EnergyListing, NIGERIAN_STATES } from '@/types'
-import PurchaseModal from '@/components/PurchaseModal'
+import Link from 'next/link'
+import { Logo } from '@/components/Logo'
+import { Icons } from '@/components/icons'
 
-export default function MarketplacePage() {
-  const { user, loading: authLoading } = useAuth()
+interface Listing {
+  id: string
+  seller_name: string
+  source_type: string
+  amount_kwh: number
+  price_per_kwh_ngn: number
+  total_price: number
+  location: string
+  created_at: string
+}
+
+export default function Marketplace() {
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const [listings, setListings] = useState<EnergyListing[]>([])
   const [loading, setLoading] = useState(true)
@@ -24,16 +33,12 @@ export default function MarketplacePage() {
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'newest' | 'most_kwh'>('newest')
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/signin')
-    }
-  }, [user, authLoading, router])
+    if (sessionStatus === 'unauthenticated') router.push('/auth/signin')
+  }, [sessionStatus, router])
 
   useEffect(() => {
-    if (user) {
-      fetchListings()
-    }
-  }, [user, filters, sortBy])
+    fetchListings()
+  }, [])
 
   const fetchListings = async () => {
     setLoading(true)
@@ -76,96 +81,82 @@ export default function MarketplacePage() {
     }
   }
 
-  const handleFilterChange = (name: string, value: string) => {
-    setFilters({ ...filters, [name]: value })
+  const handleBuy = async (listingId: string) => {
+    setBuying(listingId)
+    try {
+      const res = await fetch('/api/energy/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listing_id: listingId }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert('Purchase successful! Energy credits added to your account.')
+        fetchListings()
+      } else {
+        alert(data.error || 'Purchase failed')
+      }
+    } catch (error) {
+      alert('Error processing purchase')
+    } finally {
+      setBuying(null)
+    }
   }
 
-  const clearFilters = () => {
-    setFilters({ energySource: '', state: '', maxPrice: '', minKwh: '' })
-    setSortBy('newest')
-  }
+  const filteredListings = filter === 'all' ? listings : listings.filter(l => l.source_type === filter)
 
-  const openPurchaseModal = (listing: EnergyListing) => {
-    setSelectedListing(listing)
-    setModalOpen(true)
-  }
-
-  if (authLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin text-4xl">⚡</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <Logo variant="compact" />
+            </div>
+            <div className="flex items-center space-x-6">
+              <Link href="/dashboard" className="text-gray-600 hover:text-primary transition">Dashboard</Link>
+              <Link href="/marketplace" className="text-primary font-semibold border-b-2 border-primary pb-1">Marketplace</Link>
+              <Link href="/marketplace/sell" className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-green-600 transition text-sm">
+                + Sell Energy
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">Energy Marketplace</h1>
-          <p className="text-gray-400 mt-1">Buy clean energy from producers near you</p>
+        <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-4 mb-8 border border-blue-200">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center space-x-3">
+              <Icons.Chart className="w-8 h-8 text-primary" />
+              <div>
+                <p className="text-sm text-gray-500">AI Market Insight</p>
+                <p className="text-lg font-bold text-gray-800">Prices expected to rise 5-8% this evening</p>
+              </div>
+            </div>
+            <div className="flex space-x-4 text-sm">
+              <div><span className="text-gray-500">Current Avg:</span> <span className="font-semibold">₦94/kWh</span></div>
+              <div><span className="text-gray-500">24h Change:</span> <span className="font-semibold text-green-600">↑ ₦3</span></div>
+            </div>
+          </div>
         </div>
 
-        {/* Filters Bar */}
-        <div className="bg-gray-800 rounded-xl p-4 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <select
-              value={filters.energySource}
-              onChange={(e) => handleFilterChange('energySource', e.target.value)}
-              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
-            >
-              <option value="">All Sources</option>
-              <option value="solar">Solar</option>
-              <option value="generator">Generator</option>
-              <option value="inverter">Inverter</option>
-              <option value="battery">Battery</option>
-            </select>
-
-            <select
-              value={filters.state}
-              onChange={(e) => handleFilterChange('state', e.target.value)}
-              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
-            >
-              <option value="">All States</option>
-              {NIGERIAN_STATES.map(state => (
-                <option key={state} value={state}>{state}</option>
-              ))}
-            </select>
-
-            <input
-              type="number"
-              placeholder="Max Price (₦/kWh)"
-              value={filters.maxPrice}
-              onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
-            />
-
-            <input
-              type="number"
-              placeholder="Min kWh Available"
-              value={filters.minKwh}
-              onChange={(e) => handleFilterChange('minKwh', e.target.value)}
-              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
-            />
-
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
-            >
-              <option value="newest">Newest First</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="most_kwh">Most Available</option>
-            </select>
-          </div>
-
-          {(filters.energySource || filters.state || filters.maxPrice || filters.minKwh) && (
-            <div className="mt-4 text-right">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Energy Marketplace</h1>
+          <div className="flex space-x-2">
+            {['all', 'solar', 'generator', 'grid', 'battery'].map((f) => (
               <button
-                onClick={clearFilters}
-                className="text-sm text-green-500 hover:underline"
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-lg transition capitalize ${filter === f ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
               >
                 Clear All Filters
               </button>
@@ -173,39 +164,57 @@ export default function MarketplacePage() {
           )}
         </div>
 
-        {/* Listings Grid */}
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-white rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-500">Available Energy</p>
+            <p className="text-xl font-bold text-primary">{filteredListings.reduce((sum, l) => sum + l.amount_kwh, 0)} kWh</p>
           </div>
-        ) : listings.length === 0 ? (
-          <div className="text-center py-12 bg-gray-800 rounded-xl">
-            <p className="text-gray-400">No energy listings found</p>
-            <p className="text-gray-500 text-sm mt-2">Try adjusting your filters</p>
+          <div className="bg-white rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-500">Active Sellers</p>
+            <p className="text-xl font-bold text-primary">{filteredListings.length}</p>
+          </div>
+          <div className="bg-white rounded-lg p-3 text-center">
+            <p className="text-xs text-gray-500">Lowest Price</p>
+            <p className="text-xl font-bold text-primary">
+              ₦{filteredListings.length > 0 ? Math.min(...filteredListings.map(l => l.price_per_kwh_ngn)) : 0}/kWh
+            </p>
+          </div>
+        </div>
+
+        {filteredListings.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-md p-12 text-center">
+            <Icons.Lightning className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Energy Available</h3>
+            <p className="text-gray-500 mb-4">Be the first to list energy for sale in your area!</p>
+            <Link href="/marketplace/sell" className="bg-primary text-white px-6 py-2 rounded-lg inline-block">
+              Sell Energy Now
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {listings.map((listing) => (
-              <div key={listing.id} className="bg-gray-800 rounded-xl overflow-hidden hover:shadow-xl transition">
-                <div className="p-5">
-                  <div className="flex justify-between items-start mb-3">
+            {filteredListings.map((listing) => (
+              <div key={listing.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+                <div className={`p-4 text-white ${listing.source_type === 'solar' ? 'bg-gradient-to-r from-green-500 to-green-600' : listing.source_type === 'generator' ? 'bg-gradient-to-r from-orange-500 to-orange-600' : 'bg-gradient-to-r from-blue-500 to-blue-600'}`}>
+                  <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="text-lg font-semibold text-white">{listing.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400 capitalize">{listing.energySource}</span>
-                        <span className="text-xs text-gray-500">•</span>
-                        <span className="text-xs text-gray-400">{listing.sellerName}</span>
-                        <span className="text-xs text-gray-500">•</span>
-                        <span className="text-xs text-gray-400">{listing.locationCity}</span>
-                      </div>
+                      <p className="text-sm opacity-90">Seller</p>
+                      <p className="font-semibold">{listing.seller_name}</p>
+                    </div>
+                    <div className="capitalize text-sm bg-white/20 px-2 py-1 rounded-full">{listing.source_type}</div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Amount</p>
+                      <p className="text-2xl font-bold text-gray-800">{listing.amount_kwh} kWh</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-green-500">₦{listing.pricePerKwh}</p>
-                      <p className="text-xs text-gray-400">per kWh</p>
+                      <p className="text-sm text-gray-500">Price per kWh</p>
+                      <p className="text-xl font-bold text-primary">₦{listing.price_per_kwh_ngn}</p>
                     </div>
                   </div>
-
-                  <div className="border-t border-gray-700 my-4 pt-4">
+                  <div className="border-t pt-4 mb-4">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">Available</span>
                       <span className="text-white font-semibold">{listing.kwhAvailable} kWh</span>
@@ -221,10 +230,10 @@ export default function MarketplacePage() {
                       {listing.maxPurchaseKwh && <span>Max: {listing.maxPurchaseKwh} kWh</span>}
                     </div>
                   </div>
-
                   <button
-                    onClick={() => openPurchaseModal(listing)}
-                    className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg font-semibold transition"
+                    onClick={() => handleBuy(listing.id)}
+                    disabled={buying === listing.id}
+                    className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Buy Now
                   </button>
