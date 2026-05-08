@@ -5,6 +5,9 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+// Force this page to be dynamic (not statically generated)
+export const dynamic = 'force-dynamic'
+
 export default function SellEnergy() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -22,7 +25,7 @@ export default function SellEnergy() {
   }, [status, router])
 
   useEffect(() => {
-    // AI price recommendation based on hour
+    // AI price recommendation based on time of day
     const hour = new Date().getHours()
     let recommended = 85
     if (hour >= 18 && hour <= 22) recommended = 105
