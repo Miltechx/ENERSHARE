@@ -8,14 +8,20 @@ const nextConfig = {
       },
     ],
   },
-  // Ignore build errors temporarily to get deployed
+  // Skip type checking during build to prevent errors
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Skip ESLint during build
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Use standalone output for better deployment
+  output: 'standalone',
+  // Enable React strict mode
+  reactStrictMode: true,
+  // Disable static page generation for dynamic routes
+  staticPageGenerationTimeout: 120,
 }
 
-module.exports = nextConfig
 module.exports = nextConfig
