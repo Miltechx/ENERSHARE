@@ -1,5 +1,4 @@
 'use client'
-import BackButton from "@/components/BackButton"
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -7,6 +6,7 @@ import Link from 'next/link'
 import { auth, db } from '@/lib/firebase/client'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc, setDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
+import BackButton from '@/components/BackButton'
 import { Icons } from '@/components/icons'
 
 interface DashboardData {
@@ -24,7 +24,7 @@ interface DashboardData {
   nearbyListings: any[]
 }
 
-export default function DashboardPage() {
+export default function DashboardClient() {
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -147,7 +147,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Header */}
+      {/* Header - Single Logo */}
       <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -171,7 +171,8 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome */}
+        <BackButton />
+        
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white">
             Welcome back, {displayName}
@@ -179,7 +180,6 @@ export default function DashboardPage() {
           <p className="text-gray-400 mt-1">Here's your energy ecosystem summary</p>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
             <p className="text-green-100 text-sm">KWH BALANCE</p>
@@ -199,66 +199,40 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Link
-            href="/marketplace"
-            className="bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
-          >
-            <Icons.Lightning className="w-5 h-5" />
-            Buy Energy
+          <Link href="/marketplace" className="bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2">
+            <Icons.Lightning className="w-5 h-5" /> Buy Energy
           </Link>
-          <Link
-            href="/marketplace/sell"
-            className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
-          >
-            <Icons.Solar className="w-5 h-5" />
-            Sell Energy
+          <Link href="/marketplace/sell" className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2">
+            <Icons.Solar className="w-5 h-5" /> Sell Energy
           </Link>
-          <Link
-            href="/wallet"
-            className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
-          >
-            <Icons.Wallet className="w-5 h-5" />
-            Wallet
+          <Link href="/wallet" className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2">
+            <Icons.Wallet className="w-5 h-5" /> Wallet
           </Link>
         </div>
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Recent Transactions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Recent Transactions</h2>
-              <Link href="/wallet?tab=history" className="text-green-500 text-sm hover:underline">
-                View All
-              </Link>
+              <Link href="/wallet?tab=history" className="text-green-500 text-sm hover:underline">View All</Link>
             </div>
             {data.recentTransactions.length === 0 ? (
               <div className="text-center py-8">
-                <Icons.Trade className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                <div className="text-6xl mb-3 text-gray-600">📭</div>
                 <p className="text-gray-400">No transactions yet</p>
-                <Link href="/marketplace" className="text-green-500 text-sm hover:underline mt-2 inline-block">
-                  Start trading
-                </Link>
+                <Link href="/marketplace" className="text-green-500 text-sm hover:underline mt-2 inline-block">Start trading</Link>
               </div>
             ) : (
               <div className="space-y-3">
                 {data.recentTransactions.map((tx: any) => (
                   <div key={tx.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
                     <div>
-                      <p className="text-white font-medium">
-                        {tx.type === 'purchase' ? 'Energy Purchase' : 'Energy Sale'}
-                      </p>
-                      <p className="text-gray-400 text-sm">
-                        {tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : 'Recent'}
-                      </p>
+                      <p className="text-white font-medium">{tx.type === 'purchase' ? 'Energy Purchase' : 'Energy Sale'}</p>
+                      <p className="text-gray-400 text-sm">{tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : 'Recent'}</p>
                     </div>
                     <div className="text-right">
-                      <p className={`font-semibold ${tx.type === 'purchase' ? 'text-red-400' : 'text-green-400'}`}>
-                        {tx.type === 'purchase' ? '-' : '+'}₦{tx.totalNaira?.toLocaleString() || 0}
-                      </p>
-                      {tx.kwhAmount && <p className="text-gray-400 text-sm">{tx.kwhAmount} kWh</p>}
+                      <p className={`font-semibold ${tx.type === 'purchase' ? 'text-red-400' : 'text-green-400'}`}>{tx.type === 'purchase' ? '-' : '+'}₦{tx.totalNaira?.toLocaleString() || 0}</p>
                     </div>
                   </div>
                 ))}
@@ -266,40 +240,22 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Nearby Listings */}
           <div className="bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Near You</h2>
-              <Link href="/marketplace" className="text-green-500 text-sm hover:underline">
-                View All
-              </Link>
+              <Link href="/marketplace" className="text-green-500 text-sm hover:underline">View All</Link>
             </div>
             {data.nearbyListings.length === 0 ? (
               <div className="text-center py-8">
-                <Icons.Lightning className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                <div className="text-6xl mb-3 text-gray-600">🔌</div>
                 <p className="text-gray-400">No active listings nearby</p>
-                {isProducer && (
-                  <Link href="/marketplace/sell" className="text-green-500 text-sm hover:underline mt-2 inline-block">
-                    Create the first listing
-                  </Link>
-                )}
               </div>
             ) : (
               <div className="space-y-3">
                 {data.nearbyListings.map((listing: any) => (
                   <div key={listing.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
-                    <div>
-                      <p className="text-white font-medium">{listing.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400 capitalize">{listing.energySource}</span>
-                        <span className="text-xs text-gray-500">•</span>
-                        <span className="text-xs text-gray-400">{listing.locationCity}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-green-400 font-semibold">₦{listing.pricePerKwh}/kWh</p>
-                      <p className="text-gray-400 text-sm">{listing.kwhAvailable} kWh left</p>
-                    </div>
+                    <div><p className="text-white font-medium">{listing.title}</p><p className="text-xs text-gray-400">{listing.locationCity}</p></div>
+                    <div className="text-right"><p className="text-green-400 font-semibold">₦{listing.pricePerKwh}/kWh</p><p className="text-gray-400 text-sm">{listing.kwhAvailable} kWh left</p></div>
                   </div>
                 ))}
               </div>
@@ -307,27 +263,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Producer Section */}
         {isProducer && (
-          <div className="bg-gray-800 rounded-xl p-6">
+          <div className="mt-8 bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Active Listings</h2>
-              <Link href="/listings/mine" className="text-green-500 text-sm hover:underline">
-                Manage Listings
-              </Link>
+              <Link href="/listings/mine" className="text-green-500 text-sm hover:underline">Manage Listings</Link>
             </div>
             {data.stats.activeListings === 0 ? (
-              <div className="text-center py-6">
-                <p className="text-gray-400">You have no active listings</p>
-                <Link href="/marketplace/sell" className="text-green-500 text-sm hover:underline mt-2 inline-block">
-                  Create your first listing
-                </Link>
-              </div>
-            ) : (
-              <p className="text-gray-300">
-                You have <span className="text-green-400 font-semibold">{data.stats.activeListings}</span> active listings.
-              </p>
-            )}
+              <div className="text-center py-6"><p className="text-gray-400">You have no active listings</p><Link href="/marketplace/sell" className="text-green-500 text-sm hover:underline mt-2 inline-block">Create your first listing</Link></div>
+            ) : (<p className="text-gray-300">You have <span className="text-green-400 font-semibold">{data.stats.activeListings}</span> active listings.</p>)}
           </div>
         )}
       </main>
