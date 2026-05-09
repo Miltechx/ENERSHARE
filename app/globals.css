@@ -3,19 +3,26 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
   body {
-    @apply bg-gray-900 text-gray-100;
+    @apply bg-gray-900 text-white;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
   }
 }
 
 @layer components {
-  .btn-primary {
-    @apply bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition;
+  .container-safe {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
-  .btn-secondary {
-    @apply bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition;
+  
+  .btn-mobile {
+    @apply min-h-[44px] min-w-[44px] inline-flex items-center justify-center;
   }
-  .input {
-    @apply w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500;
+  
+  .input-mobile {
+    @apply w-full px-4 py-3 text-base bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500;
   }
 }

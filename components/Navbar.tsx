@@ -24,8 +24,6 @@ export default function Navbar() {
     { href: '/pricing', label: 'Pricing' },
     { href: '/faq', label: 'FAQ' },
     { href: '/waitlist', label: 'Waitlist' },
-    { href: '/about', label: 'About' },
-    { href: '/contact', label: 'Contact' },
   ]
 
   const filteredLinks = navLinks.filter(link => 
@@ -39,19 +37,19 @@ export default function Navbar() {
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      scrolled ? 'bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 py-3' : 'bg-transparent py-5'
+      scrolled ? 'bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 py-2' : 'bg-transparent py-4'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
             <Icons.Lightning className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-xl text-white">EnerShare</span>
+          <span className="font-bold text-lg sm:text-xl text-white">EnerShare</span>
         </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-6">
+        {/* Desktop Navigation - Hidden on mobile */}
+        <div className="hidden md:flex items-center gap-4 lg:gap-6">
           {filteredLinks.map((link) => (
             <Link
               key={link.href}
@@ -64,21 +62,21 @@ export default function Navbar() {
           
           {user ? (
             <>
-              {profile?.role === 'admin' && (
+              {profile?.is_admin && (
                 <Link href="/admin" className="text-gray-300 hover:text-green-500 transition text-sm font-medium">
                   Admin
                 </Link>
               )}
               <button
                 onClick={handleLogout}
-                className="text-red-400 hover:text-red-300 transition text-sm font-medium"
+                className="text-red-400 hover:text-red-300 transition text-sm font-medium min-w-[44px] min-h-[44px]"
               >
                 Sign Out
               </button>
             </>
           ) : (
             <>
-              <Link href="/auth/signin" className="text-gray-300 hover:text-green-500 transition text-sm font-medium">
+              <Link href="/auth/signin" className="text-gray-300 hover:text-green-500 transition text-sm font-medium min-w-[44px] min-h-[44px] inline-flex items-center">
                 Sign In
               </Link>
               <Link
@@ -94,7 +92,8 @@ export default function Navbar() {
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden text-white focus:outline-none"
+          className="md:hidden text-white focus:outline-none min-w-[44px] min-h-[44px] flex items-center justify-center"
+          aria-label="Menu"
         >
           <Icons.Menu className="w-6 h-6" />
         </button>
@@ -102,13 +101,13 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-gray-800 border-b border-gray-700 py-4">
-          <div className="flex flex-col gap-3 px-4">
+        <div className="md:hidden bg-gray-800 border-b border-gray-700 py-4 max-h-[80vh] overflow-y-auto">
+          <div className="flex flex-col gap-2 px-4">
             {filteredLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-gray-300 hover:text-green-500 py-2"
+                className="text-gray-300 hover:text-green-500 py-3 px-2 text-base min-h-[44px] flex items-center"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {link.label}
@@ -117,8 +116,8 @@ export default function Navbar() {
             
             {user ? (
               <>
-                {profile?.role === 'admin' && (
-                  <Link href="/admin" className="text-gray-300 hover:text-green-500 py-2" onClick={() => setMobileMenuOpen(false)}>
+                {profile?.is_admin && (
+                  <Link href="/admin" className="text-gray-300 hover:text-green-500 py-3 px-2 text-base min-h-[44px] flex items-center" onClick={() => setMobileMenuOpen(false)}>
                     Admin
                   </Link>
                 )}
@@ -127,17 +126,17 @@ export default function Navbar() {
                     handleLogout()
                     setMobileMenuOpen(false)
                   }}
-                  className="text-red-400 hover:text-red-300 py-2 text-left"
+                  className="text-red-400 hover:text-red-300 py-3 px-2 text-left text-base min-h-[44px] flex items-center"
                 >
                   Sign Out
                 </button>
               </>
             ) : (
               <>
-                <Link href="/auth/signin" className="text-gray-300 hover:text-green-500 py-2" onClick={() => setMobileMenuOpen(false)}>
+                <Link href="/auth/signin" className="text-gray-300 hover:text-green-500 py-3 px-2 text-base min-h-[44px] flex items-center" onClick={() => setMobileMenuOpen(false)}>
                   Sign In
                 </Link>
-                <Link href="/auth/signup" className="bg-green-600 text-white px-4 py-2 rounded-lg text-center" onClick={() => setMobileMenuOpen(false)}>
+                <Link href="/auth/signup" className="bg-green-600 text-white px-4 py-3 rounded-lg text-center text-base min-h-[44px]" onClick={() => setMobileMenuOpen(false)}>
                   Get Started
                 </Link>
               </>

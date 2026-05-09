@@ -1,9 +1,29 @@
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
+import Navbar from '@/components/Navbar'
+import { Icons } from '@/components/icons'
 
-export const metadata = {
-  title: 'EnerShare',
-  description: 'Peer-to-Peer Energy Trading Platform',
+export const metadata: Metadata = {
+  title: 'EnerShare - Peer-to-Peer Energy Trading Platform',
+  description: 'Buy and sell electricity with your neighbors',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'EnerShare',
+  },
+  formatDetection: {
+    telephone: true,
+  },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: true,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -13,9 +33,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
+      </head>
+      <body className="bg-gray-900 text-white antialiased">
         <AuthProvider>
-          {children}
+          <Navbar />
+          <main className="pt-16 min-h-screen">
+            {children}
+          </main>
         </AuthProvider>
       </body>
     </html>

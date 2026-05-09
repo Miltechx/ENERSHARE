@@ -27,7 +27,6 @@ export default function SignInPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
       
-      // Check if user profile exists
       const userDoc = await getDoc(doc(db, 'users', user.uid))
       if (!userDoc.exists()) {
         await setDoc(doc(db, 'users', user.uid), {
@@ -39,13 +38,12 @@ export default function SignInPage() {
         })
       }
       
-      // Check if wallet exists
       const walletDoc = await getDoc(doc(db, 'wallets', user.uid))
       if (!walletDoc.exists()) {
         await setDoc(doc(db, 'wallets', user.uid), {
           userId: user.uid,
           kwhBalance: 0,
-          nairaBalance: 5000,
+          nairaBalance: 0,
           totalEarned: 0,
           totalSpent: 0,
           createdAt: new Date().toISOString(),
@@ -73,7 +71,6 @@ export default function SignInPage() {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
       
-      // Check if user profile exists
       const userDoc = await getDoc(doc(db, 'users', user.uid))
       if (!userDoc.exists()) {
         await setDoc(doc(db, 'users', user.uid), {
@@ -85,13 +82,12 @@ export default function SignInPage() {
         })
       }
       
-      // Check if wallet exists
       const walletDoc = await getDoc(doc(db, 'wallets', user.uid))
       if (!walletDoc.exists()) {
         await setDoc(doc(db, 'wallets', user.uid), {
           userId: user.uid,
           kwhBalance: 0,
-          nairaBalance: 5000,
+          nairaBalance: 0,
           totalEarned: 0,
           totalSpent: 0,
           createdAt: new Date().toISOString(),
@@ -109,17 +105,16 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen bg-gray-900">
-      <div className="max-w-md mx-auto px-4 py-8">
-        {/* Back Button at Top */}
+      <div className="max-w-md mx-auto px-4 py-6 sm:py-8">
         <BackButton />
         
-        <div className="bg-gray-800 rounded-2xl p-8 mt-4">
-          <div className="text-center mb-8">
+        <div className="bg-gray-800 rounded-2xl p-6 sm:p-8 mt-4">
+          <div className="text-center mb-6 sm:mb-8">
             <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center mx-auto mb-4">
               <Icons.Lightning className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
-            <p className="text-gray-400 mt-2">Sign in to your EnerShare account</p>
+            <p className="text-gray-400 text-sm mt-2">Sign in to your EnerShare account</p>
           </div>
 
           {error && (
@@ -140,7 +135,7 @@ export default function SignInPage() {
               placeholder="Email Address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-base focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             />
 
@@ -149,7 +144,7 @@ export default function SignInPage() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-base focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             />
 
@@ -162,7 +157,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50 text-base"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -180,7 +175,7 @@ export default function SignInPage() {
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+            className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2 text-base"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

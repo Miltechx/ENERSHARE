@@ -17,7 +17,7 @@ interface DashboardData {
     kwhBalance: number
     nairaBalance: number
     totalSpent: number
-    totalEarned: number
+    totalEarned: int
     activeListings: number
   }
   recentTransactions: any[]
@@ -142,7 +142,7 @@ export default function DashboardClient() {
 
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Header - Single Logo */}
+      {/* Header - Single Sign Out Button */}
       <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -188,15 +188,9 @@ export default function DashboardClient() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Link href="/marketplace" className="bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2">
-            <Icons.Lightning className="w-5 h-5" /> Buy Energy
-          </Link>
-          <Link href="/marketplace/sell" className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2">
-            <Icons.Solar className="w-5 h-5" /> Sell Energy
-          </Link>
-          <Link href="/wallet" className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2">
-            <Icons.Wallet className="w-5 h-5" /> Wallet
-          </Link>
+          <Link href="/marketplace" className="bg-green-600 hover:bg-green-700 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"><Icons.Lightning className="w-5 h-5" /> Buy Energy</Link>
+          <Link href="/marketplace/sell" className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"><Icons.Solar className="w-5 h-5" /> Sell Energy</Link>
+          <Link href="/wallet" className="bg-gray-700 hover:bg-gray-600 text-white text-center py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"><Icons.Wallet className="w-5 h-5" /> Wallet</Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -212,19 +206,7 @@ export default function DashboardClient() {
                 <Link href="/marketplace" className="text-green-500 text-sm hover:underline mt-2 inline-block">Start trading</Link>
               </div>
             ) : (
-              <div className="space-y-3">
-                {data.recentTransactions.map((tx: any) => (
-                  <div key={tx.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
-                    <div>
-                      <p className="text-white font-medium">{tx.type === 'purchase' ? 'Energy Purchase' : 'Energy Sale'}</p>
-                      <p className="text-gray-400 text-sm">{tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : 'Recent'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-semibold ${tx.type === 'purchase' ? 'text-red-400' : 'text-green-400'}`}>{tx.type === 'purchase' ? '-' : '+'}₦{tx.totalNaira?.toLocaleString() || 0}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <div className="space-y-3">{data.recentTransactions.map((tx: any) => (<div key={tx.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg"><div><p className="text-white font-medium">{tx.type === 'purchase' ? 'Energy Purchase' : 'Energy Sale'}</p><p className="text-gray-400 text-sm">{tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : 'Recent'}</p></div><div className="text-right"><p className={`font-semibold ${tx.type === 'purchase' ? 'text-red-400' : 'text-green-400'}`}>{tx.type === 'purchase' ? '-' : '+'}₦{tx.totalNaira?.toLocaleString() || 0}</p></div></div>))}</div>
             )}
           </div>
 
@@ -239,14 +221,7 @@ export default function DashboardClient() {
                 <p className="text-gray-400">No active listings nearby</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {data.nearbyListings.map((listing: any) => (
-                  <div key={listing.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
-                    <div><p className="text-white font-medium">{listing.title}</p><p className="text-xs text-gray-400">{listing.locationCity}</p></div>
-                    <div className="text-right"><p className="text-green-400 font-semibold">₦{listing.pricePerKwh}/kWh</p><p className="text-gray-400 text-sm">{listing.kwhAvailable} kWh left</p></div>
-                  </div>
-                ))}
-              </div>
+              <div className="space-y-3">{data.nearbyListings.map((listing: any) => (<div key={listing.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg"><div><p className="text-white font-medium">{listing.title}</p><p className="text-xs text-gray-400">{listing.locationCity}</p></div><div className="text-right"><p className="text-green-400 font-semibold">₦{listing.pricePerKwh}/kWh</p><p className="text-gray-400 text-sm">{listing.kwhAvailable} kWh left</p></div></div>))}</div>
             )}
           </div>
         </div>
@@ -257,9 +232,7 @@ export default function DashboardClient() {
               <h2 className="text-xl font-semibold text-white">Active Listings</h2>
               <Link href="/listings/mine" className="text-green-500 text-sm hover:underline">Manage Listings</Link>
             </div>
-            {data.stats.activeListings === 0 ? (
-              <div className="text-center py-6"><p className="text-gray-400">You have no active listings</p><Link href="/marketplace/sell" className="text-green-500 text-sm hover:underline mt-2 inline-block">Create your first listing</Link></div>
-            ) : (<p className="text-gray-300">You have <span className="text-green-400 font-semibold">{data.stats.activeListings}</span> active listings.</p>)}
+            {data.stats.activeListings === 0 ? (<div className="text-center py-6"><p className="text-gray-400">You have no active listings</p><Link href="/marketplace/sell" className="text-green-500 text-sm hover:underline mt-2 inline-block">Create your first listing</Link></div>) : (<p className="text-gray-300">You have <span className="text-green-400 font-semibold">{data.stats.activeListings}</span> active listings.</p>)}
           </div>
         )}
       </main>
