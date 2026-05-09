@@ -1,7 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Icons } from '@/components/icons'
+
+// Force dynamic rendering to avoid prerender issues
+export const dynamic = 'force-dynamic'
 
 const faqCategories = [
   {
@@ -131,7 +135,7 @@ export default function HelpPage() {
               <Icons.Mail className="w-4 h-4" /> Email Support
             </Link>
             <a
-              href="https://wa.me/2341234567890"
+              href="https://wa.me/2349031617937"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition"

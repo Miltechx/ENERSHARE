@@ -7,6 +7,10 @@ import { useAuth } from '@/lib/auth-context'
 import { db } from '@/lib/firebase/client'
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import { EnergyListing, Transaction } from '@/types'
+import DashboardEmailBanner from '@/components/DashboardEmailBanner'
+
+// Force dynamic rendering to avoid prerender issues
+export const dynamic = 'force-dynamic'
 
 interface DashboardStats {
   kwhBalance: number
@@ -18,7 +22,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
-  const { user, profile, wallet, loading: authLoading } = useAuth()
+  const { user, profile, wallet, loading: authLoading, refreshWallet } = useAuth()
   const router = useRouter()
   const [stats, setStats] = useState<DashboardStats>({
     kwhBalance: 0,
@@ -52,7 +56,6 @@ export default function DashboardPage() {
 
     setLoading(true)
     try {
-      // Set wallet stats
       setStats(prev => ({
         ...prev,
         kwhBalance: wallet?.kwhBalance || 0,
@@ -61,7 +64,6 @@ export default function DashboardPage() {
         totalEarned: wallet?.totalEarned || 0,
       }))
 
-      // Fetch recent transactions
       const transactionsRef = collection(db, 'transactions')
       const q = query(
         transactionsRef,
@@ -73,7 +75,6 @@ export default function DashboardPage() {
       const transactions = txSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]
       setRecentTransactions(transactions)
 
-      // Fetch active listings (for producers)
       const listingsRef = collection(db, 'listings')
       const listingsQuery = query(
         listingsRef,
@@ -83,7 +84,6 @@ export default function DashboardPage() {
       const listingsSnapshot = await getDocs(listingsQuery)
       setStats(prev => ({ ...prev, activeListings: listingsSnapshot.size }))
 
-      // Fetch nearby listings
       const nearbyQuery = query(
         listingsRef,
         where('locationState', '==', profile.state),
@@ -116,7 +116,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Header */}
+        <DashboardEmailBanner />
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white">
             Welcome back, {profile?.fullName?.split(' ')[0]}
@@ -124,7 +125,6 @@ export default function DashboardPage() {
           <p className="text-gray-400 mt-1">Here's what's happening with your energy ecosystem</p>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
             <p className="text-green-100 text-sm">KWH BALANCE</p>
@@ -153,7 +153,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Link
             href="/marketplace"
@@ -178,7 +177,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Transactions */}
           <div className="bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Recent Transactions</h2>
@@ -220,7 +218,6 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Nearby Listings */}
           <div className="bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-white">Near You</h2>
@@ -261,7 +258,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Producer Specific Section */}
         {isProducer && (
           <div className="mt-8 bg-gray-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">

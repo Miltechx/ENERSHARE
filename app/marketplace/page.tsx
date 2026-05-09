@@ -5,10 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { db } from '@/lib/firebase/client'
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore'
-import { EnergyListing, NIGERIAN_STATES } from '@/types'
+import Link from 'next/link'
 import PurchaseModal from '@/components/PurchaseModal'
 import FavouriteButton from '@/components/FavouriteButton'
 import StarRating from '@/components/StarRating'
+import { EnergyListing, NIGERIAN_STATES } from '@/types'
+
+// Force dynamic rendering to avoid prerender issues
+export const dynamic = 'force-dynamic'
 
 export default function MarketplacePage() {
   const { user, loading: authLoading } = useAuth()
@@ -97,7 +101,6 @@ export default function MarketplacePage() {
           <p className="text-gray-400 mt-1">Buy clean energy from producers near you</p>
         </div>
 
-        {/* Filters Bar */}
         <div className="bg-gray-800 rounded-xl p-4 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <select
@@ -152,7 +155,6 @@ export default function MarketplacePage() {
           </div>
         </div>
 
-        {/* Listings Grid */}
         {loading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-500"></div>

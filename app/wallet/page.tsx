@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { db } from '@/lib/firebase/client'
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import { Transaction } from '@/types'
-import { Icons } from '@/components/icons'
+
+// Force dynamic rendering to avoid prerender issues
+export const dynamic = 'force-dynamic'
 
 export default function WalletPage() {
   const { user, wallet, loading: authLoading, refreshWallet } = useAuth()
@@ -83,7 +86,6 @@ export default function WalletPage() {
         throw new Error(initData.error || 'Failed to initialize payment')
       }
 
-      // Dynamic import to avoid SSR issues
       const PaystackPop = (await import('@paystack/inline-js')).default
       const handler = PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
@@ -179,7 +181,6 @@ export default function WalletPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-white mb-8">Wallet</h1>
 
-        {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
             <p className="text-green-100 text-sm">TOTAL BALANCE</p>
@@ -201,7 +202,6 @@ export default function WalletPage() {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex space-x-2 border-b border-gray-700 mb-6">
           {['balance', 'topup', 'withdraw', 'history'].map((tab) => (
             <button
@@ -221,7 +221,6 @@ export default function WalletPage() {
           ))}
         </div>
 
-        {/* Error/Success Messages */}
         {error && (
           <div className="mb-6 p-3 bg-red-500/10 border border-red-500 rounded-lg">
             <p className="text-red-500 text-sm">{error}</p>
@@ -233,7 +232,6 @@ export default function WalletPage() {
           </div>
         )}
 
-        {/* Top Up Tab */}
         {activeTab === 'topup' && (
           <div className="bg-gray-800 rounded-xl p-6 max-w-md">
             <h2 className="text-xl font-semibold text-white mb-4">Add Funds</h2>
@@ -261,7 +259,6 @@ export default function WalletPage() {
           </div>
         )}
 
-        {/* Withdraw Tab */}
         {activeTab === 'withdraw' && (
           <div className="bg-gray-800 rounded-xl p-6 max-w-md">
             <h2 className="text-xl font-semibold text-white mb-4">Withdraw Funds</h2>
@@ -320,7 +317,6 @@ export default function WalletPage() {
           </div>
         )}
 
-        {/* History Tab */}
         {activeTab === 'history' && (
           <div className="bg-gray-800 rounded-xl overflow-hidden">
             {loading ? (

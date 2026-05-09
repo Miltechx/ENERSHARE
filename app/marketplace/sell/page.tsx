@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-// Force this page to be dynamic (not statically generated)
+// Force dynamic rendering to avoid prerender issues
 export const dynamic = 'force-dynamic'
 
 export default function SellEnergy() {
@@ -25,7 +25,6 @@ export default function SellEnergy() {
   }, [status, router])
 
   useEffect(() => {
-    // AI price recommendation based on time of day
     const hour = new Date().getHours()
     let recommended = 85
     if (hour >= 18 && hour <= 22) recommended = 105
@@ -66,7 +65,7 @@ export default function SellEnergy() {
       })
 
       if (res.ok) {
-        alert('✅ Energy listed successfully! Buyers can now purchase.')
+        alert('Energy listed successfully! Buyers can now purchase.')
         router.push('/marketplace')
       } else {
         const error = await res.json()
@@ -79,7 +78,6 @@ export default function SellEnergy() {
     }
   }
 
-  // Safe calculation functions
   const getAmount = (): number => {
     const val = parseFloat(amount)
     return isNaN(val) ? 0 : val
@@ -95,19 +93,18 @@ export default function SellEnergy() {
   const netEarnings = totalEarnings - platformFee
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gray-900">
+      <nav className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link href="/" className="text-2xl mr-2">⚡</Link>
-              <Link href="/" className="font-bold text-xl text-gray-800">EnerShare</Link>
+              <Link href="/" className="font-bold text-xl text-white">EnerShare</Link>
             </div>
             <div className="flex items-center space-x-6">
-              <Link href="/dashboard" className="text-gray-600 hover:text-green-600 transition">Dashboard</Link>
-              <Link href="/marketplace" className="text-gray-600 hover:text-green-600 transition">Marketplace</Link>
-              <Link href="/marketplace/sell" className="text-green-600 font-semibold">Sell Energy</Link>
+              <Link href="/dashboard" className="text-gray-300 hover:text-green-500 transition">Dashboard</Link>
+              <Link href="/marketplace" className="text-gray-300 hover:text-green-500 transition">Marketplace</Link>
+              <Link href="/marketplace/sell" className="text-green-500 font-semibold">Sell Energy</Link>
             </div>
           </div>
         </div>
@@ -115,16 +112,15 @@ export default function SellEnergy() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">List Energy for Sale</h1>
-          <p className="text-gray-500">Turn your surplus into income</p>
+          <h1 className="text-2xl font-bold text-white">List Energy for Sale</h1>
+          <p className="text-gray-400">Turn your surplus into income</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form */}
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl shadow-md p-6 space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Energy Source</label>
+                <label className="block text-sm font-semibold text-gray-300 mb-2">Energy Source</label>
                 <div className="grid grid-cols-4 gap-2">
                   {[
                     { id: 'solar', label: 'Solar', icon: '☀️' },
@@ -139,7 +135,7 @@ export default function SellEnergy() {
                       className={`flex flex-col items-center py-2 rounded-lg transition ${
                         source === s.id
                           ? 'bg-green-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                       }`}
                     >
                       <span className="text-xl">{s.icon}</span>
@@ -150,7 +146,7 @@ export default function SellEnergy() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-300 mb-2">
                   Amount to Sell (kWh)
                 </label>
                 <input
@@ -158,15 +154,14 @@ export default function SellEnergy() {
                   step="0.1"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                   placeholder="e.g., 10.5"
                   required
                 />
-                <p className="text-xs text-gray-400 mt-1">Enter the amount of energy you want to sell</p>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-300 mb-2">
                   Price per kWh (₦)
                 </label>
                 <input
@@ -174,22 +169,22 @@ export default function SellEnergy() {
                   step="1"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                   placeholder="e.g., 95"
                   required
                 />
                 {aiPrice && (
-                  <div className="mt-2 p-3 bg-blue-50 rounded-lg flex justify-between items-center">
+                  <div className="mt-2 p-3 bg-blue-500/10 rounded-lg flex justify-between items-center">
                     <div className="flex items-center space-x-2">
-                      <span className="text-blue-600">🤖</span>
-                      <span className="text-sm text-gray-600">AI Recommended Price:</span>
+                      <span className="text-blue-400">🤖</span>
+                      <span className="text-sm text-gray-400">AI Recommended Price:</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className="font-bold text-green-600">₦{aiPrice}/kWh</span>
+                      <span className="font-bold text-green-500">₦{aiPrice}/kWh</span>
                       <button
                         type="button"
                         onClick={() => setPrice(aiPrice.toString())}
-                        className="text-xs text-blue-600 hover:underline"
+                        className="text-xs text-blue-400 hover:underline"
                       >
                         Use
                       </button>
@@ -199,23 +194,22 @@ export default function SellEnergy() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-300 mb-2">
                   Location (City/Area)
                 </label>
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                   placeholder="e.g., Lekki, Lagos"
                 />
-                <p className="text-xs text-gray-400 mt-1">Buyers will see your location</p>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50 flex items-center justify-center space-x-2"
               >
                 {loading ? (
                   <>
@@ -232,7 +226,6 @@ export default function SellEnergy() {
             </form>
           </div>
 
-          {/* Preview Sidebar */}
           <div>
             <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-6 text-white mb-6">
               <h3 className="font-bold text-lg mb-3">Listing Preview</h3>
@@ -265,32 +258,22 @@ export default function SellEnergy() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-md">
-              <h3 className="font-semibold text-gray-800 mb-3">Market Tips</h3>
+            <div className="bg-gray-800 rounded-xl p-6 shadow-md">
+              <h3 className="font-semibold text-white mb-3">Market Tips</h3>
               <ul className="space-y-3 text-sm">
                 <li className="flex items-start space-x-2">
                   <span className="text-green-500">✓</span>
-                  <span className="text-gray-600">Price 10-15% below grid rate for fast sales</span>
+                  <span className="text-gray-400">Price 10-15% below grid rate for fast sales</span>
                 </li>
                 <li className="flex items-start space-x-2">
                   <span className="text-green-500">✓</span>
-                  <span>List during evening hours when demand is highest</span>
+                  <span className="text-gray-400">List during evening hours when demand is highest</span>
                 </li>
                 <li className="flex items-start space-x-2">
                   <span className="text-green-500">✓</span>
-                  <span>Consistent listings build buyer trust</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="text-green-500">✓</span>
-                  <span>Clean energy sources (solar) attract more buyers</span>
+                  <span className="text-gray-400">Consistent listings build buyer trust</span>
                 </li>
               </ul>
-            </div>
-
-            <div className="mt-4 bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-              <p className="text-sm text-yellow-800">
-                <strong>💡 Pro Tip:</strong> Start with a competitive price to build your seller reputation. You can adjust prices later.
-              </p>
             </div>
           </div>
         </div>
