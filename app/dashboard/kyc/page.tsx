@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { db } from '@/lib/firebase/client'
 import { doc, updateDoc, getDoc } from 'firebase/firestore'
-import BackButton from '@/components/BackButton'
 import { Icons } from '@/components/icons'
 
 export default function KYCPage() {

@@ -1,6 +1,5 @@
 'use client'
 import BackButton from "@/components/BackButton"
-import BackButton from '@/components/BackButton'
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
