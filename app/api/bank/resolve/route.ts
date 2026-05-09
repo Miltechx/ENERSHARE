@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { adminAuth } from '@/lib/firebase/admin'
 
 export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('Authorization')
+  const token = authHeader?.replace('Bearer ', '')
+
+  if (!token) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    await adminAuth.verifyIdToken(token)
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 })
+  }
+
   const { searchParams } = new URL(request.url)
   const bankCode = searchParams.get('bankCode')
   const accountNumber = searchParams.get('accountNumber')

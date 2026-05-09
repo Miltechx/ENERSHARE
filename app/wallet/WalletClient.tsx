@@ -3,14 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { db } from '@/lib/firebase/client'
+import { auth, db } from '@/lib/firebase/client'
 import { doc, getDoc, updateDoc, addDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import BackButton from '@/components/BackButton'
 import { Icons } from '@/components/icons'
 
 // Complete Nigerian Banks List (Commercial + Microfinance)
 const NIGERIAN_BANKS = [
-  // Tier 1 Commercial Banks
   { code: '000001', name: 'Access Bank Plc' },
   { code: '000002', name: 'First Bank of Nigeria Ltd' },
   { code: '000003', name: 'Guaranty Trust Bank Plc' },
@@ -31,7 +30,6 @@ const NIGERIAN_BANKS = [
   { code: '000018', name: 'Titan Trust Bank Ltd' },
   { code: '000019', name: 'Providus Bank Ltd' },
   { code: '000020', name: 'Globus Bank Ltd' },
-  // Digital Banks
   { code: '000021', name: 'Kuda Bank' },
   { code: '000022', name: 'Opay Digital Bank' },
   { code: '000023', name: 'Palmpay' },
@@ -42,7 +40,6 @@ const NIGERIAN_BANKS = [
   { code: '000028', name: 'Carbon (OneFi)' },
   { code: '000029', name: 'Mint Finance' },
   { code: '000030', name: 'ALAT by Wema' },
-  // Microfinance Banks
   { code: '000031', name: 'Accion Microfinance Bank' },
   { code: '000032', name: 'LAPO Microfinance Bank' },
   { code: '000033', name: 'Fortis Microfinance Bank' },
@@ -63,9 +60,14 @@ const NIGERIAN_BANKS = [
   { code: '000048', name: 'Peace Microfinance Bank' },
   { code: '000049', name: 'Royal Microfinance Bank' },
   { code: '000050', name: 'Standard Microfinance Bank' },
-  { code: '000051', name: 'VFD Microfinance Bank' },
-  { code: '000052', name: 'Zenith Microfinance Bank' },
+  { code: '000051', name: 'Zenith Microfinance Bank' },
 ]
+
+async function getAuthToken(): Promise<string | null> {
+  const user = auth.currentUser
+  if (!user) return null
+  return await user.getIdToken()
+}
 
 export default function WalletPage() {
   const { user, wallet, refreshWallet } = useAuth()
@@ -86,9 +88,7 @@ export default function WalletPage() {
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
-    if (user) {
-      fetchTransactions()
-    }
+    if (user) { fetchTransactions() }
   }, [user])
 
   const fetchTransactions = async () => {
@@ -109,7 +109,11 @@ export default function WalletPage() {
     setVerifyingBank(true)
     setError('')
     try {
-      const res = await fetch(`/api/bank/resolve?bankCode=${bankCode}&accountNumber=${accountNumber}`)
+      const token = await getAuthToken()
+      if (!token) { setError('Please sign in again'); return }
+      const res = await fetch(`/api/bank/resolve?bankCode=${bankCode}&accountNumber=${accountNumber}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       const data = await res.json()
       if (data.success) { setAccountName(data.accountName) }
       else { setError('Account not found. Check bank and number.') }
@@ -122,22 +126,36 @@ export default function WalletPage() {
     if (isNaN(amount) || amount < 500) { setError('Minimum ₦500'); return }
     setTopupLoading(true); setError(''); setSuccess('')
     try {
+      const token = await getAuthToken()
+      if (!token) { setError('Please sign in again'); return }
       const initRes = await fetch('/api/paystack/initialize', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ amountNaira: amount, email: user?.email, metadata: { type: 'deposit' } })
       })
       const initData = await initRes.json()
-      if (!initData.success) throw new Error(initData.error || 'Failed to initialize')
+      if (!initData.success) throw new Error(initData.error || 'Failed')
       const PaystackPop = (await import('@paystack/inline-js')).default
       const handler = PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY, email: user?.email!,
-        amount: amount * 100, ref: initData.reference,
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+        email: user?.email!,
+        amount: amount * 100,
+        ref: initData.reference,
         onSuccess: async (tx: any) => {
-          const verifyRes = await fetch('/api/paystack/verify', { method: 'POST', body: JSON.stringify({ reference: tx.reference }) })
+          const verifyRes = await fetch('/api/paystack/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ reference: tx.reference })
+          })
           const verifyData = await verifyRes.json()
-          if (verifyData.success) { await refreshWallet(); setSuccess(`₦${amount.toLocaleString()} added`); setTopupAmount(''); fetchTransactions() }
-          else { setError('Verification failed') }
-        }, onCancel: () => setError('Cancelled')
+          if (verifyData.success) {
+            await refreshWallet()
+            setSuccess(`₦${amount.toLocaleString()} added`)
+            setTopupAmount('')
+            fetchTransactions()
+          } else { setError('Verification failed') }
+        },
+        onCancel: () => setError('Cancelled')
       })
       handler.openIframe()
     } catch (err: any) { setError(err.message) }
@@ -151,14 +169,19 @@ export default function WalletPage() {
     if (!bankCode || !accountNumber || !accountName) { setError('Complete bank details and verify account'); return }
     setWithdrawLoading(true); setError(''); setSuccess('')
     try {
-      const walletRef = doc(db, 'wallets', user!.uid)
-      const currentWallet = await getDoc(walletRef)
-      const currentBalance = currentWallet.data()?.nairaBalance || 0
-      await updateDoc(walletRef, { nairaBalance: currentBalance - amount, updatedAt: new Date().toISOString() })
-      await addDoc(collection(db, 'withdrawals'), { userId: user!.uid, amount, bankName: selectedBank, bankCode, accountNumber, accountName, status: 'pending', createdAt: new Date().toISOString() })
-      await refreshWallet()
-      setSuccess(`Withdrawal request submitted for ₦${amount.toLocaleString()}`)
-      setWithdrawAmount(''); setSelectedBank(''); setBankCode(''); setAccountNumber(''); setAccountName('')
+      const token = await getAuthToken()
+      if (!token) { setError('Please sign in again'); return }
+      const res = await fetch('/api/wallet/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ amountNaira: amount, bankCode, accountNumber, accountName, bankName: selectedBank })
+      })
+      const data = await res.json()
+      if (data.success) {
+        await refreshWallet()
+        setSuccess(`Withdrawal request submitted for ₦${amount.toLocaleString()}`)
+        setWithdrawAmount(''); setSelectedBank(''); setBankCode(''); setAccountNumber(''); setAccountName('')
+      } else { setError(data.error || 'Withdrawal failed') }
     } catch (err) { setError('Withdrawal failed') }
     finally { setWithdrawLoading(false) }
   }

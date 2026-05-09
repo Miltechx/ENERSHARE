@@ -37,7 +37,6 @@ export default function DashboardClient() {
       }
 
       try {
-        // Get or create profile
         const profileRef = doc(db, 'users', user.uid)
         const profileSnap = await getDoc(profileRef)
         let profile = profileSnap.data()
@@ -53,7 +52,6 @@ export default function DashboardClient() {
           await setDoc(profileRef, profile)
         }
 
-        // Get or create wallet
         const walletRef = doc(db, 'wallets', user.uid)
         const walletSnap = await getDoc(walletRef)
         let wallet = walletSnap.data()
@@ -62,7 +60,7 @@ export default function DashboardClient() {
           wallet = {
             userId: user.uid,
             kwhBalance: 0,
-            nairaBalance: 5000,
+            nairaBalance: 0,
             totalEarned: 0,
             totalSpent: 0,
             createdAt: new Date().toISOString()
@@ -70,7 +68,6 @@ export default function DashboardClient() {
           await setDoc(walletRef, wallet)
         }
 
-        // Get user's active listings count
         const listingsQuery = query(
           collection(db, 'listings'),
           where('sellerId', '==', user.uid),
@@ -79,7 +76,6 @@ export default function DashboardClient() {
         const listingsSnap = await getDocs(listingsQuery)
         const activeListings = listingsSnap.size
 
-        // Get recent transactions
         const transactionsQuery = query(
           collection(db, 'transactions'),
           where('buyerId', '==', user.uid),
@@ -89,7 +85,6 @@ export default function DashboardClient() {
         const transactionsSnap = await getDocs(transactionsQuery)
         const recentTransactions = transactionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
-        // Get nearby listings
         let nearbyListings = []
         if (profile?.state) {
           const nearbyQuery = query(
@@ -160,12 +155,7 @@ export default function DashboardClient() {
             {isProducer && (
               <Link href="/listings/mine" className="text-gray-300 hover:text-green-500 transition">My Listings</Link>
             )}
-            <button
-              onClick={handleLogout}
-              className="bg-red-600/20 hover:bg-red-600/30 text-red-400 px-4 py-2 rounded-lg transition"
-            >
-              Sign Out
-            </button>
+            <button onClick={handleLogout} className="bg-red-600/20 hover:bg-red-600/30 text-red-400 px-4 py-2 rounded-lg transition">Sign Out</button>
           </div>
         </div>
       </header>
@@ -174,9 +164,7 @@ export default function DashboardClient() {
         <BackButton />
         
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">
-            Welcome back, {displayName}
-          </h1>
+          <h1 className="text-3xl font-bold text-white">Welcome back, {displayName}</h1>
           <p className="text-gray-400 mt-1">Here's your energy ecosystem summary</p>
         </div>
 
@@ -219,7 +207,7 @@ export default function DashboardClient() {
             </div>
             {data.recentTransactions.length === 0 ? (
               <div className="text-center py-8">
-                <div className="text-6xl mb-3 text-gray-600">📭</div>
+                <Icons.Trade className="w-12 h-12 text-gray-600 mx-auto mb-3" />
                 <p className="text-gray-400">No transactions yet</p>
                 <Link href="/marketplace" className="text-green-500 text-sm hover:underline mt-2 inline-block">Start trading</Link>
               </div>
@@ -247,7 +235,7 @@ export default function DashboardClient() {
             </div>
             {data.nearbyListings.length === 0 ? (
               <div className="text-center py-8">
-                <div className="text-6xl mb-3 text-gray-600">🔌</div>
+                <Icons.Lightning className="w-12 h-12 text-gray-600 mx-auto mb-3" />
                 <p className="text-gray-400">No active listings nearby</p>
               </div>
             ) : (
