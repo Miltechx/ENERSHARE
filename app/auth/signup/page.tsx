@@ -71,7 +71,7 @@ export default function SignUpPage() {
       await setDoc(doc(db, 'wallets', userCredential.user.uid), {
         userId: userCredential.user.uid,
         kwhBalance: 0,
-        nairaBalance: 5000,
+        nairaBalance: 0,
         totalEarned: 0,
         totalSpent: 0,
         createdAt: new Date().toISOString(),
