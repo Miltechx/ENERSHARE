@@ -15,7 +15,7 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -41,7 +41,19 @@ export default function SignInPage() {
 
   const handleGoogleSignIn = async () => {
     setLoading(true)
-    await signIn('google', { callbackUrl })
+    setError('')
+    try {
+      const result = await signIn('google', { callbackUrl, redirect: false })
+      if (result?.error) {
+        setError('Google sign in failed. Please try again.')
+      } else {
+        router.push(callbackUrl)
+      }
+    } catch (err) {
+      setError('Google sign in failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -67,13 +79,13 @@ export default function SignInPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleEmailSignIn} className="space-y-4">
           <input
             type="email"
             placeholder="Email Address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
             required
           />
 
@@ -82,7 +94,7 @@ export default function SignInPage() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
             required
           />
 
@@ -95,7 +107,7 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition"
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
