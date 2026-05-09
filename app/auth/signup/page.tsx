@@ -3,10 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { signIn } from 'next-auth/react'
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth'
+import { signUp, signInWithGoogle } from '@/lib/firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase/client'
+import { db } from '@/lib/firebase/client'
 import { Icons } from '@/components/icons'
 
 const NIGERIAN_STATES = [
@@ -53,19 +52,10 @@ export default function SignUpPage() {
     }
 
     try {
-      // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
-      const userId = userCredential.user.uid
+      const user = await signUp(formData.email, formData.password, formData.fullName)
       
-      // Update profile with display name
-      await updateProfile(userCredential.user, { displayName: formData.fullName })
-      
-      // Send email verification
-      await sendEmailVerification(userCredential.user)
-
-      // Save to Firestore
-      await setDoc(doc(db, 'users', userId), {
-        uid: userId,
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
@@ -75,8 +65,8 @@ export default function SignUpPage() {
         createdAt: new Date().toISOString(),
       })
 
-      await setDoc(doc(db, 'wallets', userId), {
-        userId: userId,
+      await setDoc(doc(db, 'wallets', user.uid), {
+        userId: user.uid,
         kwhBalance: 0,
         nairaBalance: 0,
         totalEarned: 0,
@@ -91,8 +81,6 @@ export default function SignUpPage() {
         setError('Email already registered. Please sign in.')
       } else if (err.code === 'auth/weak-password') {
         setError('Password too weak. Use at least 6 characters.')
-      } else if (err.code === 'auth/invalid-email') {
-        setError('Invalid email address.')
       } else {
         setError(err.message || 'Failed to create account')
       }
@@ -105,10 +93,32 @@ export default function SignUpPage() {
     setLoading(true)
     setError('')
     try {
-      const result = await signIn('google', { callbackUrl: '/dashboard' })
-      if (result?.error) {
-        setError('Google sign up failed. Please try again.')
+      const user = await signInWithGoogle()
+      
+      // Check if user already has a profile
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          fullName: user.displayName,
+          email: user.email,
+          phone: '',
+          role: 'consumer',
+          state: 'Lagos',
+          city: '',
+          createdAt: new Date().toISOString(),
+        })
+        await setDoc(doc(db, 'wallets', user.uid), {
+          userId: user.uid,
+          kwhBalance: 0,
+          nairaBalance: 0,
+          totalEarned: 0,
+          totalSpent: 0,
+          createdAt: new Date().toISOString(),
+        })
       }
+      
+      router.push('/dashboard')
     } catch (err) {
       setError('Google sign up failed. Please try again.')
     } finally {
@@ -134,47 +144,41 @@ export default function SignUpPage() {
         )}
 
         <form onSubmit={handleEmailSignUp} className="space-y-4">
-          <div>
-            <input
-              type="text"
-              name="fullName"
-              placeholder="Full Name"
-              value={formData.fullName}
-              onChange={handleChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-          </div>
+          <input
+            type="text"
+            name="fullName"
+            placeholder="Full Name"
+            value={formData.fullName}
+            onChange={handleChange}
+            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            required
+          />
 
-          <div>
-            <input
-              type="email"
-              name="email"
-              placeholder="Email Address"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-          </div>
+          <input
+            type="email"
+            name="email"
+            placeholder="Email Address"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            required
+          />
 
-          <div>
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Phone Number (Optional)"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
+          <input
+            type="tel"
+            name="phone"
+            placeholder="Phone Number"
+            value={formData.phone}
+            onChange={handleChange}
+            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <select
               name="state"
               value={formData.state}
               onChange={handleChange}
-              className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
             >
               {NIGERIAN_STATES.map(state => (
                 <option key={state} value={state}>{state}</option>
@@ -186,47 +190,36 @@ export default function SignUpPage() {
               placeholder="City"
               value={formData.city}
               onChange={handleChange}
-              className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
             />
           </div>
 
-          <div>
-            <input
-              type="password"
-              name="password"
-              placeholder="Password (min 6 characters)"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-          </div>
+          <input
+            type="password"
+            name="password"
+            placeholder="Password (min 6 characters)"
+            value={formData.password}
+            onChange={handleChange}
+            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            required
+          />
 
-          <div>
-            <input
-              type="password"
-              name="confirmPassword"
-              placeholder="Confirm Password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-          </div>
+          <input
+            type="password"
+            name="confirmPassword"
+            placeholder="Confirm Password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            required
+          />
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
           >
-            {loading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-            ) : (
-              <>
-                <Icons.Lightning className="w-5 h-5" />
-                Create Account
-              </>
-            )}
+            {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
 

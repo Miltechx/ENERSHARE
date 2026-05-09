@@ -1,13 +1,19 @@
-import { auth } from './config'
-import {
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
   onAuthStateChanged,
   User,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth'
+import { app } from './config'
+
+export const auth = getAuth(app)
+export const googleProvider = new GoogleAuthProvider()
 
 export const signUp = async (email: string, password: string, fullName: string) => {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password)
@@ -18,6 +24,11 @@ export const signUp = async (email: string, password: string, fullName: string) 
 export const signIn = async (email: string, password: string) => {
   const userCredential = await signInWithEmailAndPassword(auth, email, password)
   return userCredential.user
+}
+
+export const signInWithGoogle = async () => {
+  const result = await signInWithPopup(auth, googleProvider)
+  return result.user
 }
 
 export const logout = async () => {

@@ -1,15 +1,15 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { onAuthStateChanged, User, signOut as firebaseSignOut } from 'firebase/auth'
+import { User } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from './firebase/client'
-import { UserProfile, Wallet } from '@/types'
+import { onAuthChange, logout as firebaseLogout } from './firebase/auth'
 
 interface AuthContextType {
   user: User | null
-  profile: UserProfile | null
-  wallet: Wallet | null
+  profile: any | null
+  wallet: any | null
   loading: boolean
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -20,21 +20,21 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [wallet, setWallet] = useState<Wallet | null>(null)
+  const [profile, setProfile] = useState<any | null>(null)
+  const [wallet, setWallet] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = async (uid: string) => {
     const profileDoc = await getDoc(doc(db, 'users', uid))
     if (profileDoc.exists()) {
-      setProfile(profileDoc.data() as UserProfile)
+      setProfile(profileDoc.data())
     }
   }
 
   const fetchWallet = async (uid: string) => {
     const walletDoc = await getDoc(doc(db, 'wallets', uid))
     if (walletDoc.exists()) {
-      setWallet(walletDoc.data() as Wallet)
+      setWallet(walletDoc.data())
     }
   }
 
@@ -47,14 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    await firebaseSignOut(auth)
+    await firebaseLogout()
     setUser(null)
     setProfile(null)
     setWallet(null)
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthChange(async (currentUser) => {
       setUser(currentUser)
       if (currentUser) {
         await Promise.all([fetchProfile(currentUser.uid), fetchWallet(currentUser.uid)])

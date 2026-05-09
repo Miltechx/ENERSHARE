@@ -1,15 +1,13 @@
 'use client'
 
-import { signIn } from 'next-auth/react'
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { signIn, signInWithGoogle } from '@/lib/firebase/auth'
 import { Icons } from '@/components/icons'
 
 export default function SignInPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -21,20 +19,20 @@ export default function SignInPage() {
     setError('')
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
+      await signIn(email, password)
+      router.push('/dashboard')
+    } catch (err: any) {
+      console.error(err)
+      if (err.code === 'auth/invalid-credential') {
         setError('Invalid email or password')
-        setLoading(false)
+      } else if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email')
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Incorrect password')
       } else {
-        router.push(callbackUrl)
+        setError('Failed to sign in. Please try again.')
       }
-    } catch (err) {
-      setError('Failed to sign in')
+    } finally {
       setLoading(false)
     }
   }
@@ -43,13 +41,10 @@ export default function SignInPage() {
     setLoading(true)
     setError('')
     try {
-      const result = await signIn('google', { callbackUrl, redirect: false })
-      if (result?.error) {
-        setError('Google sign in failed. Please try again.')
-      } else {
-        router.push(callbackUrl)
-      }
-    } catch (err) {
+      await signInWithGoogle()
+      router.push('/dashboard')
+    } catch (err: any) {
+      console.error(err)
       setError('Google sign in failed. Please try again.')
     } finally {
       setLoading(false)
@@ -70,12 +65,6 @@ export default function SignInPage() {
         {error && (
           <div className="bg-red-500/10 border border-red-500 rounded-lg p-3 mb-6">
             <p className="text-red-500 text-sm">{error}</p>
-          </div>
-        )}
-
-        {searchParams.get('registered') && (
-          <div className="bg-green-500/10 border border-green-500 rounded-lg p-3 mb-6">
-            <p className="text-green-500 text-sm">Account created! Please sign in.</p>
           </div>
         )}
 
