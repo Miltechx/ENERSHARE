@@ -19,44 +19,131 @@ export default function HomePage() {
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         scrolled ? 'bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 py-3' : 'bg-transparent py-5'
       }`}>
-        <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
               <Icons.Lightning className="w-5 h-5 text-white" />
             </div>
             <span className="font-bold text-xl text-white">EnerShare</span>
           </Link>
-          <div className="flex gap-4">
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="/pricing" className="text-gray-300 hover:text-green-500 transition">Pricing</Link>
+            <Link href="/faq" className="text-gray-300 hover:text-green-500 transition">FAQ</Link>
+            <Link href="/waitlist" className="text-gray-300 hover:text-green-500 transition">Waitlist</Link>
+            <Link href="/about" className="text-gray-300 hover:text-green-500 transition">About</Link>
+            <Link href="/contact" className="text-gray-300 hover:text-green-500 transition">Contact</Link>
             <Link href="/auth/signin" className="text-gray-300 hover:text-green-500 transition">Sign In</Link>
             <Link href="/auth/signup" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
               Get Started
             </Link>
           </div>
+          {/* Mobile menu button */}
+          <button className="md:hidden text-white">
+            <Icons.Menu className="w-6 h-6" />
+          </button>
         </div>
       </nav>
 
-      {/* Hero */}
-      <div className="pt-32 text-center px-4">
-        <h1 className="text-5xl font-bold text-white mb-6">
-          Trade Energy With{' '}
-          <span className="text-green-500">Your Neighbors</span>
-        </h1>
-        <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-10">
-          Turn your solar panels, generator, or battery into a revenue stream.
-          Buy and sell electricity instantly with people around you.
-        </p>
-        <Link href="/auth/signup" className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold inline-block">
-          Start Earning Free
-        </Link>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto mt-20">
-          <div><div className="text-3xl font-bold text-green-500">₦4.2T</div><div className="text-gray-500">Market Size</div></div>
-          <div><div className="text-3xl font-bold text-green-500">50K+</div><div className="text-gray-500">Active Users</div></div>
-          <div><div className="text-3xl font-bold text-green-500">30%</div><div className="text-gray-500">Avg Savings</div></div>
-          <div><div className="text-3xl font-bold text-green-500">24/7</div><div className="text-gray-500">Trading</div></div>
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 px-4 text-center">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+            Trade Energy With{' '}
+            <span className="text-green-500">Your Neighbors</span>
+          </h1>
+          <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
+            Turn your solar panels, generator, or battery into a revenue stream.
+            Buy and sell electricity instantly with people around you. Save up to 30% or earn ₦50k+ monthly.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/auth/signup" className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold transition inline-flex items-center justify-center gap-2">
+              <Icons.Lightning className="w-5 h-5" />
+              Start Earning Free
+            </Link>
+            <Link href="/marketplace" className="border border-gray-600 text-gray-300 hover:border-green-500 hover:text-green-500 px-8 py-3 rounded-full font-semibold transition">
+              Browse Marketplace
+            </Link>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-12 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div>
+              <div className="text-4xl font-bold text-green-500">₦4.2T</div>
+              <div className="text-gray-500 mt-1">Market Size</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-green-500">50K+</div>
+              <div className="text-gray-500 mt-1">Active Users</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-green-500">30%</div>
+              <div className="text-gray-500 mt-1">Average Savings</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-green-500">24/7</div>
+              <div className="text-gray-500 mt-1">Trading</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 px-4 bg-gray-800">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl font-bold text-white text-center mb-12">Why Choose EnerShare?</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-gray-900 rounded-xl p-6 text-center">
+              <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icons.Lightning className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">Peer-to-Peer Trading</h3>
+              <p className="text-gray-400">Buy and sell electricity directly with your neighbors. No middlemen.</p>
+            </div>
+            <div className="bg-gray-900 rounded-xl p-6 text-center">
+              <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icons.Chart className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">AI Dynamic Pricing</h3>
+              <p className="text-gray-400">Our AI analyzes supply and demand to recommend the best prices.</p>
+            </div>
+            <div className="bg-gray-900 rounded-xl p-6 text-center">
+              <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icons.Wallet className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">Instant Payments</h3>
+              <p className="text-gray-400">Get paid instantly when you sell energy. Withdraw to your bank.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 px-4 text-center">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl font-bold text-white mb-4">Ready to Join the Energy Revolution?</h2>
+          <p className="text-gray-400 mb-8">Start earning from your energy assets today. It's free to join.</p>
+          <Link href="/auth/signup" className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold transition inline-flex items-center gap-2">
+            <Icons.Lightning className="w-5 h-5" />
+            Create Free Account
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-8 px-4 border-t border-gray-800 text-center text-gray-500 text-sm">
+        <div className="max-w-6xl mx-auto">
+          <p>&copy; {new Date().getFullYear()} EnerShare. All rights reserved.</p>
+          <div className="flex justify-center gap-4 mt-2">
+            <Link href="/privacy" className="hover:text-green-500">Privacy</Link>
+            <Link href="/terms" className="hover:text-green-500">Terms</Link>
+            <Link href="/contact" className="hover:text-green-500">Contact</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
