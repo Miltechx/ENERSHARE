@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
@@ -85,6 +86,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+        <BackButton />
         <div className="animate-spin text-4xl">⚡</div>
       </div>
     )
@@ -92,6 +94,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+        <BackButton />
       <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">

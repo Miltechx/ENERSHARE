@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -90,6 +91,7 @@ export default function SignInPage() {
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <BackButton />
       <div className="max-w-md w-full bg-gray-800 rounded-2xl p-8">
 
         {/* Header */}

@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
@@ -17,6 +18,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gray-900">
+        <BackButton />
       <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         scrolled ? 'bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 py-3' : 'bg-transparent py-5'
       }`}>

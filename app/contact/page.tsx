@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
@@ -45,6 +46,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-gray-900">
+        <BackButton />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <h1 className="text-4xl font-bold text-white mb-6">Contact Us</h1>
 

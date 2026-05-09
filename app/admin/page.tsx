@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -118,6 +119,7 @@ export default function AdminPage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <BackButton />
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
       </div>
     )
@@ -129,6 +131,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-900">
+        <BackButton />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>

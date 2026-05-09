@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
@@ -77,6 +78,7 @@ export default function KYCPage() {
   if (pageLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+        <BackButton />
         <div className="animate-spin text-4xl">⚡</div>
       </div>
     )
@@ -85,6 +87,7 @@ export default function KYCPage() {
   if (kycStatus === 'approved') {
     return (
       <div className="min-h-screen bg-gray-50">
+        <BackButton />
         <nav className="bg-white shadow-sm p-4">
           <Logo variant="compact" />
         </nav>
@@ -106,6 +109,7 @@ export default function KYCPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+        <BackButton />
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between">
           <Logo variant="compact" />

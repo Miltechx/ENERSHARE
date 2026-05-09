@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -113,6 +114,7 @@ export default function AutoSellPage() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <BackButton />
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
       </div>
     )
@@ -120,6 +122,7 @@ export default function AutoSellPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 pb-12">
+        <BackButton />
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => router.back()} className="text-gray-400 hover:text-white">

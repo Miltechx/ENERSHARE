@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -75,6 +76,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <BackButton />
       <div className="max-w-2xl w-full bg-gray-800 rounded-2xl p-8">
         {/* Progress Steps */}
         <div className="flex mb-8">

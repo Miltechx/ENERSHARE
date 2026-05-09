@@ -1,4 +1,5 @@
 'use client'
+import BackButton from '@/components/BackButton'
 
 import { useState } from "react"
 import { getAuth, sendPasswordResetEmail } from "firebase/auth"
@@ -31,6 +32,7 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <BackButton />
       <div className="bg-white p-8 rounded-lg shadow-md w-96">
         <h1 className="text-2xl font-bold mb-6 text-center">Reset Password</h1>
         {message && <p className="text-green-600 text-sm mb-4">{message}</p>}
