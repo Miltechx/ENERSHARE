@@ -1,48 +1,29 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { auth } from '@/lib/firebase/client'
-import { onAuthStateChanged } from 'firebase/auth'
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState('Loading...')
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      console.log('Auth state changed:', currentUser?.email)
-      setUser(currentUser)
-      setLoading(false)
-    })
-    return () => unsubscribe()
+    setMessage('Page loaded!')
+    console.log('Dashboard mounted')
   }, [])
 
-  if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-white text-xl">Not signed in</p>
-          <a href="/auth/signin" className="text-green-500 mt-4 inline-block">Sign In</a>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gray-900 p-8">
-      <h1 className="text-3xl font-bold text-white mb-4">Dashboard</h1>
-      <p className="text-gray-400">Welcome, {user.email}</p>
-      <p className="text-green-500 mt-2">✅ You are signed in!</p>
-      <button 
-        onClick={() => auth.signOut()}
-        className="mt-4 bg-red-600 text-white px-4 py-2 rounded"
+    <div style={{ minHeight: '100vh', backgroundColor: '#111827', padding: '2rem' }}>
+      <h1 style={{ color: 'white', fontSize: '2rem', marginBottom: '1rem' }}>Dashboard Test</h1>
+      <p style={{ color: '#9CA3AF', marginBottom: '1rem' }}>Status: {message}</p>
+      <div style={{ backgroundColor: '#1F2937', padding: '1rem', borderRadius: '0.5rem' }}>
+        <p style={{ color: '#10B981' }}>✅ If you see this, the dashboard page is rendering.</p>
+        <p style={{ color: '#9CA3AF', marginTop: '0.5rem' }}>This is a test version with no dependencies.</p>
+      </div>
+      <a 
+        href="/auth/signin" 
+        style={{ display: 'inline-block', marginTop: '1rem', backgroundColor: '#10B981', color: 'white', padding: '0.5rem 1rem', borderRadius: '0.5rem', textDecoration: 'none' }}
       >
-        Sign Out
-      </button>
+        Go to Sign In
+      </a>
     </div>
   )
 }
