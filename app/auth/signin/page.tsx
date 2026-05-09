@@ -1,13 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { signIn, signInWithGoogle } from '@/lib/firebase/auth'
+import { getIdToken } from 'firebase/auth'
+import { auth } from '@/lib/firebase/config' // adjust path to your firebase config
 import { Icons } from '@/components/icons'
+
+async function createSession(user: any) {
+  const idToken = await getIdToken(user)
+  const res = await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  })
+  if (!res.ok) throw new Error('Failed to create session')
+}
 
 export default function SignInPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -19,16 +34,15 @@ export default function SignInPage() {
     setError('')
 
     try {
-      await signIn(email, password)
-      router.push('/dashboard')
+      const userCredential = await signIn(email, password)
+      await createSession(userCredential.user)
+      router.push(callbackUrl)
     } catch (err: any) {
       console.error(err)
-      if (err.code === 'auth/invalid-credential') {
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
         setError('Invalid email or password')
       } else if (err.code === 'auth/user-not-found') {
         setError('No account found with this email')
-      } else if (err.code === 'auth/wrong-password') {
-        setError('Incorrect password')
       } else {
         setError('Failed to sign in. Please try again.')
       }
@@ -41,8 +55,9 @@ export default function SignInPage() {
     setLoading(true)
     setError('')
     try {
-      await signInWithGoogle()
-      router.push('/dashboard')
+      const userCredential = await signInWithGoogle()
+      await createSession(userCredential.user)
+      router.push(callbackUrl)
     } catch (err: any) {
       console.error(err)
       setError('Google sign in failed. Please try again.')
@@ -51,6 +66,7 @@ export default function SignInPage() {
     }
   }
 
+  // ---- JSX is unchanged from your original ----
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-gray-800 rounded-2xl p-8">
@@ -69,35 +85,21 @@ export default function SignInPage() {
         )}
 
         <form onSubmit={handleEmailSignIn} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email Address"
-            value={email}
+          <input type="email" placeholder="Email Address" value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
+            required />
+          <input type="password" placeholder="Password" value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-            required
-          />
-
+            required />
           <div className="text-right">
             <Link href="/auth/forgot-password" className="text-sm text-green-500 hover:underline">
               Forgot Password?
             </Link>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
-          >
+          <button type="submit" disabled={loading}
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50">
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
@@ -111,11 +113,8 @@ export default function SignInPage() {
           </div>
         </div>
 
-        <button
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-          className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
-        >
+        <button onClick={handleGoogleSignIn} disabled={loading}
+          className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2">
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -127,9 +126,7 @@ export default function SignInPage() {
 
         <p className="text-center text-gray-400 text-sm mt-6">
           Don't have an account?{' '}
-          <Link href="/auth/signup" className="text-green-500 hover:underline">
-            Sign up
-          </Link>
+          <Link href="/auth/signup" className="text-green-500 hover:underline">Sign up</Link>
         </p>
       </div>
     </div>
