@@ -8,20 +8,30 @@ const nextConfig = {
       },
     ],
   },
-  // Skip type checking during build to prevent errors
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Skip ESLint during build
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Use standalone output for better deployment
-  output: 'standalone',
-  // Enable React strict mode
-  reactStrictMode: true,
-  // Disable static page generation for dynamic routes
-  staticPageGenerationTimeout: 120,
+  // Add headers to fix cross-origin issues
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+          },
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'unsafe-none',
+          },
+        ],
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig
