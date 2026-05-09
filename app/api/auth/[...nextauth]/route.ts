@@ -4,11 +4,11 @@ import GoogleProvider from "next-auth/providers/google"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase/client"
 
-const handler = NextAuth({
+export const authOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
     CredentialsProvider({
       name: "credentials",
@@ -18,7 +18,7 @@ const handler = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email and password required")
+          return null
         }
 
         try {
@@ -27,7 +27,6 @@ const handler = NextAuth({
             credentials.email,
             credentials.password
           )
-          
           const user = userCredential.user
           
           return {
@@ -35,20 +34,9 @@ const handler = NextAuth({
             email: user.email,
             name: user.displayName,
           }
-        } catch (error: any) {
-          console.error("Auth error:", error.code, error.message)
-          
-          if (error.code === "auth/user-not-found") {
-            throw new Error("No user found with this email")
-          }
-          if (error.code === "auth/wrong-password") {
-            throw new Error("Incorrect password")
-          }
-          if (error.code === "auth/too-many-requests") {
-            throw new Error("Too many failed attempts. Try again later.")
-          }
-          
-          throw new Error("Invalid email or password")
+        } catch (error) {
+          console.error("Auth error:", error)
+          return null
         }
       }
     })
@@ -69,14 +57,14 @@ const handler = NextAuth({
   },
   pages: {
     signIn: "/auth/signin",
-    error: "/auth/signin",
   },
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  debug: true, // Enable debug mode to see errors
-})
+  debug: true,
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
