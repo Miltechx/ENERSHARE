@@ -2,20 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { db } from '@/lib/firebase/client'
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
-import { Transaction } from '@/types'
-
-// Force dynamic rendering to avoid prerender issues
-export const dynamic = 'force-dynamic'
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
+import { Icons } from '@/components/icons'
+import BackButton from '@/components/BackButton'
 
 export default function WalletPage() {
-  const { user, wallet, loading: authLoading, refreshWallet } = useAuth()
+  const { user, wallet, refreshWallet } = useAuth()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'balance' | 'topup' | 'withdraw' | 'history'>('balance')
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [topupAmount, setTopupAmount] = useState('')
   const [topupLoading, setTopupLoading] = useState(false)
@@ -26,12 +23,6 @@ export default function WalletPage() {
   const [withdrawLoading, setWithdrawLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/signin')
-    }
-  }, [user, authLoading, router])
 
   useEffect(() => {
     if (user) {
@@ -50,7 +41,7 @@ export default function WalletPage() {
         limit(50)
       )
       const snapshot = await getDocs(q)
-      const txData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[]
+      const txData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
       setTransactions(txData)
     } catch (error) {
       console.error('Error fetching transactions:', error)
@@ -70,52 +61,38 @@ export default function WalletPage() {
     setError('')
     setSuccess('')
 
-    try {
-      const initRes = await fetch('/api/paystack/initialize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amountNaira: amount,
-          email: user?.email,
-          metadata: { type: 'deposit' },
-        }),
-      })
-
-      const initData = await initRes.json()
-      if (!initData.success) {
-        throw new Error(initData.error || 'Failed to initialize payment')
+    // Demo mode top-up (real Paystack will be added in production)
+    setTimeout(async () => {
+      try {
+        const walletRef = doc(db, 'wallets', user!.uid)
+        const currentWallet = await getDoc(walletRef)
+        const currentBalance = currentWallet.data()?.nairaBalance || 0
+        
+        await updateDoc(walletRef, {
+          nairaBalance: currentBalance + amount,
+          updatedAt: new Date().toISOString(),
+        })
+        
+        // Create transaction record
+        const transactionsRef = collection(db, 'transactions')
+        await addDoc(transactionsRef, {
+          buyerId: user!.uid,
+          type: 'deposit',
+          totalNaira: amount,
+          status: 'completed',
+          createdAt: new Date().toISOString(),
+        })
+        
+        await refreshWallet()
+        setSuccess(`Successfully added ₦${amount.toLocaleString()} to your wallet`)
+        setTopupAmount('')
+        fetchTransactions()
+      } catch (err) {
+        setError('Top-up failed. Please try again.')
+      } finally {
+        setTopupLoading(false)
       }
-
-      const PaystackPop = (await import('@paystack/inline-js')).default
-      const handler = PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
-        email: user?.email!,
-        amount: amount * 100,
-        ref: initData.reference,
-        onSuccess: async (transaction: any) => {
-          const verifyRes = await fetch('/api/paystack/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference: transaction.reference }),
-          })
-          const verifyData = await verifyRes.json()
-          if (verifyData.success) {
-            await refreshWallet()
-            setSuccess(`Successfully added ₦${amount.toLocaleString()} to your wallet`)
-            setTopupAmount('')
-            fetchTransactions()
-          }
-        },
-        onCancel: () => {
-          setError('Payment was cancelled')
-        },
-      })
-      handler.openIframe()
-    } catch (err: any) {
-      setError(err.message || 'Top-up failed')
-    } finally {
-      setTopupLoading(false)
-    }
+    }, 1000)
   }
 
   const handleWithdraw = async () => {
@@ -137,56 +114,67 @@ export default function WalletPage() {
     setError('')
     setSuccess('')
 
-    try {
-      const res = await fetch('/api/wallet/withdraw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amountNaira: amount,
+    // Demo mode withdrawal
+    setTimeout(async () => {
+      try {
+        const walletRef = doc(db, 'wallets', user!.uid)
+        const currentWallet = await getDoc(walletRef)
+        const currentBalance = currentWallet.data()?.nairaBalance || 0
+        
+        await updateDoc(walletRef, {
+          nairaBalance: currentBalance - amount,
+          updatedAt: new Date().toISOString(),
+        })
+        
+        // Create withdrawal request record
+        const withdrawalsRef = collection(db, 'withdrawals')
+        await addDoc(withdrawalsRef, {
+          userId: user!.uid,
+          amount: amount,
           bankName,
           accountNumber,
           accountName: accountName || 'Self',
-        }),
-      })
-      const data = await res.json()
-      if (data.success) {
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        })
+        
+        await refreshWallet()
         setSuccess(`Withdrawal request submitted for ₦${amount.toLocaleString()}`)
         setWithdrawAmount('')
         setBankName('')
         setAccountNumber('')
         setAccountName('')
-        await refreshWallet()
-      } else {
-        setError(data.error || 'Withdrawal failed')
+        fetchTransactions()
+      } catch (err) {
+        setError('Withdrawal failed. Please try again.')
+      } finally {
+        setWithdrawLoading(false)
       }
-    } catch (err) {
-      setError('Withdrawal failed. Please try again.')
-    } finally {
-      setWithdrawLoading(false)
-    }
+    }, 1000)
   }
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-      </div>
-    )
-  }
-
-  const totalBalance = (wallet?.nairaBalance || 0) + (wallet?.kwhBalance || 0)
+  if (!user) return null
 
   return (
     <div className="min-h-screen bg-gray-900 pb-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <BackButton />
+        
         <h1 className="text-3xl font-bold text-white mb-8">Wallet</h1>
 
+        {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
-            <p className="text-green-100 text-sm">TOTAL BALANCE</p>
+            <p className="text-green-100 text-sm">NAIRA BALANCE</p>
             <p className="text-3xl font-bold text-white mt-1">
-              ₦{wallet?.nairaBalance.toLocaleString() || 0}
+              ₦{(wallet?.nairaBalance || 0).toLocaleString()}
             </p>
+            <button
+              onClick={() => setActiveTab('topup')}
+              className="mt-4 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm transition"
+            >
+              Add Funds
+            </button>
           </div>
           <div className="bg-gray-800 rounded-xl p-6">
             <p className="text-gray-400 text-sm">KWH BALANCE</p>
@@ -197,11 +185,12 @@ export default function WalletPage() {
           <div className="bg-gray-800 rounded-xl p-6">
             <p className="text-gray-400 text-sm">TOTAL EARNED</p>
             <p className="text-2xl font-bold text-white mt-1">
-              ₦{wallet?.totalEarned.toLocaleString() || 0}
+              ₦{(wallet?.totalEarned || 0).toLocaleString()}
             </p>
           </div>
         </div>
 
+        {/* Tabs */}
         <div className="flex space-x-2 border-b border-gray-700 mb-6">
           {['balance', 'topup', 'withdraw', 'history'].map((tab) => (
             <button
@@ -232,6 +221,7 @@ export default function WalletPage() {
           </div>
         )}
 
+        {/* Top Up Tab */}
         {activeTab === 'topup' && (
           <div className="bg-gray-800 rounded-xl p-6 max-w-md">
             <h2 className="text-xl font-semibold text-white mb-4">Add Funds</h2>
@@ -245,7 +235,7 @@ export default function WalletPage() {
                 onChange={(e) => setTopupAmount(e.target.value)}
                 placeholder="500"
                 min="500"
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
               />
               <p className="text-xs text-gray-400 mt-1">Minimum: ₦500</p>
             </div>
@@ -256,9 +246,13 @@ export default function WalletPage() {
             >
               {topupLoading ? 'Processing...' : 'Add Funds'}
             </button>
+            <p className="text-xs text-gray-400 text-center mt-4">
+              Demo mode: Funds added instantly. Real Paystack integration coming soon.
+            </p>
           </div>
         )}
 
+        {/* Withdraw Tab */}
         {activeTab === 'withdraw' && (
           <div className="bg-gray-800 rounded-xl p-6 max-w-md">
             <h2 className="text-xl font-semibold text-white mb-4">Withdraw Funds</h2>
@@ -274,8 +268,11 @@ export default function WalletPage() {
                   placeholder="1000"
                   min="1000"
                   max={wallet?.nairaBalance || 0}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
                 />
+                <p className="text-xs text-gray-400 mt-1">
+                  Available: ₦{(wallet?.nairaBalance || 0).toLocaleString()} | Min: ₦1,000
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -284,7 +281,7 @@ export default function WalletPage() {
                 <select
                   value={bankName}
                   onChange={(e) => setBankName(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
                 >
                   <option value="">Select Bank</option>
                   <option value="GTBank">GTBank</option>
@@ -303,7 +300,19 @@ export default function WalletPage() {
                   value={accountNumber}
                   onChange={(e) => setAccountNumber(e.target.value)}
                   placeholder="1234567890"
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Account Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white"
                 />
               </div>
               <button
@@ -313,10 +322,14 @@ export default function WalletPage() {
               >
                 {withdrawLoading ? 'Processing...' : 'Request Withdrawal'}
               </button>
+              <p className="text-xs text-gray-400 text-center">
+                Withdrawals are processed within 1-2 business days
+              </p>
             </div>
           </div>
         )}
 
+        {/* History Tab */}
         {activeTab === 'history' && (
           <div className="bg-gray-800 rounded-xl overflow-hidden">
             {loading ? (
@@ -338,10 +351,10 @@ export default function WalletPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((tx) => (
+                  {transactions.map((tx: any) => (
                     <tr key={tx.id} className="border-t border-gray-700">
                       <td className="p-4 text-gray-400 text-sm">
-                        {tx.createdAt?.toDate().toLocaleDateString()}
+                        {tx.createdAt?.toDate ? tx.createdAt.toDate().toLocaleDateString() : 'Recent'}
                       </td>
                       <td className="p-4 text-white">
                         {tx.type === 'purchase' ? 'Energy Purchase' : 
@@ -350,12 +363,12 @@ export default function WalletPage() {
                       </td>
                       <td className="p-4">
                         <span className={tx.type === 'purchase' ? 'text-red-400' : 'text-green-400'}>
-                          {tx.type === 'purchase' ? '-' : '+'}₦{tx.totalNaira.toLocaleString()}
+                          {tx.type === 'purchase' ? '-' : '+'}₦{tx.totalNaira?.toLocaleString() || 0}
                         </span>
                       </td>
                       <td className="p-4">
                         <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
-                          {tx.status}
+                          {tx.status || 'completed'}
                         </span>
                       </td>
                     </tr>

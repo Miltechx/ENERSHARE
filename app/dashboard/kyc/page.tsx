@@ -1,106 +1,96 @@
 'use client'
-import BackButton from '@/components/BackButton'
+import BackButton from "@/components/BackButton"
 
-import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Logo } from '@/components/Logo'
+import { useAuth } from '@/lib/auth-context'
+import { db } from '@/lib/firebase/client'
+import { doc, updateDoc, getDoc } from 'firebase/firestore'
+import BackButton from '@/components/BackButton'
 import { Icons } from '@/components/icons'
-import { db } from '@/lib/firebase/config'
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
 
 export default function KYCPage() {
-  const { data: session, status: sessionStatus } = useSession()
+  const { user, profile, refreshProfile } = useAuth()
   const router = useRouter()
   const [nin, setNin] = useState('')
   const [bvn, setBvn] = useState('')
-  const [kycStatus, setKycStatus] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [pageLoading, setPageLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [kycStatus, setKycStatus] = useState('pending')
 
   useEffect(() => {
-    if (sessionStatus === 'unauthenticated') router.push('/auth/signin')
-  }, [sessionStatus, router])
-
-  useEffect(() => {
-    if (session?.user) {
-      checkKycStatus()
+    if (profile?.kycStatus) {
+      setKycStatus(profile.kycStatus)
     }
-  }, [session])
-
-  const checkKycStatus = async () => {
-    if (!session?.user?.id) return
-    
-    try {
-      const kycRef = doc(db, 'kyc_submissions', session.user.id)
-      const kycSnap = await getDoc(kycRef)
-      
-      if (kycSnap.exists()) {
-        setKycStatus(kycSnap.data().status)
-      }
-    } catch (error) {
-      console.error('Error checking KYC status:', error)
-    } finally {
-      setPageLoading(false)
+    if (profile?.nin) {
+      setNin(profile.nin)
     }
-  }
+    if (profile?.bvn) {
+      setBvn(profile.bvn)
+    }
+  }, [profile])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError('')
     setMessage('')
 
-    if (!session?.user?.id) return
+    if (!nin || nin.length !== 11) {
+      setError('Please enter a valid 11-digit NIN')
+      setLoading(false)
+      return
+    }
+
+    if (!bvn || bvn.length !== 11) {
+      setError('Please enter a valid 11-digit BVN')
+      setLoading(false)
+      return
+    }
 
     try {
-      const kycRef = doc(db, 'kyc_submissions', session.user.id)
-      await setDoc(kycRef, {
-        user_id: session.user.id,
+      const userRef = doc(db, 'users', user!.uid)
+      await updateDoc(userRef, {
         nin: nin,
         bvn: bvn,
-        status: 'pending',
-        submittedAt: new Date().toISOString(),
+        kycStatus: 'submitted',
+        updatedAt: new Date().toISOString(),
       })
-      
+      await refreshProfile()
       setMessage('KYC submitted successfully! Awaiting verification.')
-      setKycStatus('pending')
-      setNin('')
-      setBvn('')
-    } catch (error: any) {
-      setMessage(`Error: ${error.message}`)
+      setKycStatus('submitted')
+    } catch (err) {
+      setError('Failed to submit KYC. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  if (pageLoading) {
+  if (kycStatus === 'verified') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <BackButton />
-        <div className="animate-spin text-4xl">⚡</div>
+      <div className="min-h-screen bg-gray-900">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <BackButton />
+          <div className="bg-green-500/10 border border-green-500 rounded-xl p-8 text-center">
+            <Icons.Check className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">KYC Verified</h2>
+            <p className="text-gray-400">Your identity has been verified. You have full access to all features.</p>
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (kycStatus === 'approved') {
+  if (kycStatus === 'submitted') {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <BackButton />
-        <nav className="bg-white shadow-sm p-4">
-          <Logo variant="compact" />
-        </nav>
-        <div className="max-w-2xl mx-auto p-8 text-center">
-          <div className="bg-white rounded-xl shadow-md p-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Icons.Check className="w-8 h-8 text-green-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">KYC Verified</h1>
-            <p className="text-gray-500">Your identity has been verified. You have full access to all features.</p>
-            <Link href="/dashboard" className="inline-block mt-6 text-primary hover:underline">
-              Back to Dashboard →
-            </Link>
+      <div className="min-h-screen bg-gray-900">
+        <div className="max-w-2xl mx-auto px-4 py-8">
+          <BackButton />
+          <div className="bg-yellow-500/10 border border-yellow-500 rounded-xl p-8 text-center">
+            <Icons.Lightning className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">KYC Pending Review</h2>
+            <p className="text-gray-400">Your documents are being reviewed. We'll notify you once verified.</p>
           </div>
         </div>
       </div>
@@ -108,78 +98,76 @@ export default function KYCPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-        <BackButton />
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between">
-          <Logo variant="compact" />
-          <Link href="/dashboard" className="text-gray-600">Back to Dashboard</Link>
-        </div>
-      </nav>
-
+    <div className="min-h-screen bg-gray-900">
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-xl shadow-md p-8">
-          <div className="text-center mb-6">
-            <Icons.User className="w-12 h-12 text-primary mx-auto mb-3" />
-            <h1 className="text-2xl font-bold text-gray-800">Identity Verification</h1>
-            <p className="text-gray-500 text-sm mt-2">Verify your identity to unlock all features</p>
+        <BackButton />
+        
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white">KYC Verification</h1>
+          <p className="text-gray-400 mt-1">Verify your identity to unlock all features</p>
+        </div>
+
+        <div className="bg-gray-800 rounded-xl p-6">
+          <div className="mb-6 p-4 bg-gray-700 rounded-lg">
+            <p className="text-gray-300 text-sm mb-2">Why we need this</p>
+            <p className="text-gray-400 text-sm">
+              KYC is required by Nigerian financial regulations to prevent fraud and ensure platform safety.
+              Your information is encrypted and secure.
+            </p>
           </div>
 
-          {kycStatus === 'pending' ? (
-            <div className="text-center py-8">
-              <div className="bg-yellow-50 text-yellow-600 p-4 rounded-lg">
-                Your KYC is pending review. We'll notify you once verified.
-              </div>
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500 rounded-lg">
+              <p className="text-red-500 text-sm">{error}</p>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {message && (
-                <div className={`p-3 rounded-lg ${message.includes('Error') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                  {message}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">NIN (National Identification Number)</label>
-                <input
-                  type="text"
-                  value={nin}
-                  onChange={(e) => setNin(e.target.value)}
-                  placeholder="12345678901"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                />
-                <p className="text-xs text-gray-400 mt-1">11-digit NIN from NIMC</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">BVN (Bank Verification Number)</label>
-                <input
-                  type="text"
-                  value={bvn}
-                  onChange={(e) => setBvn(e.target.value)}
-                  placeholder="12345678901"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  required
-                />
-                <p className="text-xs text-gray-400 mt-1">11-digit BVN from your bank</p>
-              </div>
-
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Why we need this:</strong> Your information is encrypted and used only for regulatory compliance. We never share your data.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition disabled:opacity-50"
-              >
-                {loading ? 'Submitting...' : 'Submit for Verification'}
-              </button>
-            </form>
           )}
+          {message && (
+            <div className="mb-4 p-3 bg-green-500/10 border border-green-500 rounded-lg">
+              <p className="text-green-500 text-sm">{message}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                NIN (National Identification Number)
+              </label>
+              <input
+                type="text"
+                value={nin}
+                onChange={(e) => setNin(e.target.value)}
+                placeholder="12345678901"
+                maxLength={11}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">11-digit NIN from NIMC</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                BVN (Bank Verification Number)
+              </label>
+              <input
+                type="text"
+                value={bvn}
+                onChange={(e) => setBvn(e.target.value)}
+                placeholder="12345678901"
+                maxLength={11}
+                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">11-digit BVN from your bank</p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
+            >
+              {loading ? 'Submitting...' : 'Submit for Verification'}
+            </button>
+          </form>
         </div>
       </div>
     </div>
