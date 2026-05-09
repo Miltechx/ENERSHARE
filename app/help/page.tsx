@@ -1,8 +1,10 @@
-# Create wrapper files
-echo "import dynamic from 'next/dynamic'\n\nexport const dynamic = 'force-dynamic'\n\nconst Client = dynamic(() => import('./Client'), { ssr: false })\n\nexport default function Page() { return <Client /> }" > app/marketplace/page.tsx
+import dynamic from 'next/dynamic'
 
-echo "import dynamic from 'next/dynamic'\n\nexport const dynamic = 'force-dynamic'\n\nconst Client = dynamic(() => import('./Client'), { ssr: false })\n\nexport default function Page() { return <Client /> }" > app/dashboard/page.tsx
+const HelpClient = dynamic(
+  () => import('./HelpClient'),
+  { ssr: false }
+)
 
-echo "import dynamic from 'next/dynamic'\n\nexport const dynamic = 'force-dynamic'\n\nconst Client = dynamic(() => import('./Client'), { ssr: false })\n\nexport default function Page() { return <Client /> }" > app/wallet/page.tsx
-
-echo "import dynamic from 'next/dynamic'\n\nexport const dynamic = 'force-dynamic'\n\nconst Client = dynamic(() => import('./Client'), { ssr: false })\n\nexport default function Page() { return <Client /> }" > app/help/page.tsx
+export default function HelpPage() {
+  return <HelpClient />
+}

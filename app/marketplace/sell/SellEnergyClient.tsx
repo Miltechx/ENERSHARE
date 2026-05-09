@@ -115,7 +115,7 @@ export default function SellEnergyClient() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl shadow-md p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl p-6 space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-300 mb-2">Energy Source</label>
                 <div className="grid grid-cols-4 gap-2">
@@ -206,7 +206,7 @@ export default function SellEnergyClient() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50 flex items-center justify-center space-x-2"
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -227,49 +227,22 @@ export default function SellEnergyClient() {
             <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-xl p-6 text-white mb-6">
               <h3 className="font-bold text-lg mb-3">Listing Preview</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Source:</span>
-                  <span className="capitalize font-semibold">{source}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Amount:</span>
-                  <span className="font-semibold">{getAmount()} kWh</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Price:</span>
-                  <span className="font-semibold">₦{getPrice()}/kWh</span>
-                </div>
+                <div className="flex justify-between"><span>Source:</span><span className="capitalize font-semibold">{source}</span></div>
+                <div className="flex justify-between"><span>Amount:</span><span className="font-semibold">{getAmount()} kWh</span></div>
+                <div className="flex justify-between"><span>Price:</span><span className="font-semibold">₦{getPrice()}/kWh</span></div>
                 <div className="border-t border-white/20 my-2 pt-2"></div>
-                <div className="flex justify-between">
-                  <span>Total Earnings:</span>
-                  <span className="font-bold">₦{totalEarnings.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-xs opacity-80">
-                  <span>Platform Fee (2%):</span>
-                  <span>₦{platformFee.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between font-bold">
-                  <span>You Receive:</span>
-                  <span>₦{netEarnings.toLocaleString()}</span>
-                </div>
+                <div className="flex justify-between"><span>Total Earnings:</span><span className="font-bold">₦{totalEarnings.toLocaleString()}</span></div>
+                <div className="flex justify-between text-xs opacity-80"><span>Platform Fee (2%):</span><span>₦{platformFee.toLocaleString()}</span></div>
+                <div className="flex justify-between font-bold"><span>You Receive:</span><span>₦{netEarnings.toLocaleString()}</span></div>
               </div>
             </div>
 
-            <div className="bg-gray-800 rounded-xl p-6 shadow-md">
+            <div className="bg-gray-800 rounded-xl p-6">
               <h3 className="font-semibold text-white mb-3">Market Tips</h3>
               <ul className="space-y-3 text-sm">
-                <li className="flex items-start space-x-2">
-                  <span className="text-green-500">✓</span>
-                  <span className="text-gray-400">Price 10-15% below grid rate for fast sales</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="text-green-500">✓</span>
-                  <span className="text-gray-400">List during evening hours when demand is highest</span>
-                </li>
-                <li className="flex items-start space-x-2">
-                  <span className="text-green-500">✓</span>
-                  <span className="text-gray-400">Consistent listings build buyer trust</span>
-                </li>
+                <li className="flex items-start gap-2"><span className="text-green-500">✓</span><span className="text-gray-400">Price 10-15% below grid rate for fast sales</span></li>
+                <li className="flex items-start gap-2"><span className="text-green-500">✓</span><span className="text-gray-400">List during evening hours when demand is highest</span></li>
+                <li className="flex items-start gap-2"><span className="text-green-500">✓</span><span className="text-gray-400">Consistent listings build buyer trust</span></li>
               </ul>
             </div>
           </div>
