@@ -1,145 +1,56 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
+import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth'
-import { doc, writeBatch, serverTimestamp } from 'firebase/firestore'
-import { auth, db } from '@/lib/firebase/client'
-import { NIGERIAN_STATES } from '@/types'
 import { Icons } from '@/components/icons'
 
-export default function SignUpPage() {
+export default function SignInPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [acceptTerms, setAcceptTerms] = useState(false)
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    role: 'consumer',
-    state: 'Lagos',
-    city: '',
-  })
-
-  // Check for referral code in URL
-  const [referralCode, setReferralCode] = useState<string | null>(null)
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const ref = params.get('ref')
-    if (ref) {
-      setReferralCode(ref)
-    }
-  }, [])
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
-
-  const generateReferralCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase()
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
-    if (!acceptTerms) {
-      setError('You must accept the Terms of Service and Privacy Policy')
-      setLoading(false)
-      return
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
-      setLoading(false)
-      return
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters')
-      setLoading(false)
-      return
-    }
-
-    if (!formData.phone.match(/^0[789][01]\d{8}$/)) {
-      setError('Enter a valid Nigerian phone number (e.g., 08012345678)')
-      setLoading(false)
-      return
-    }
-
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
-      await updateProfile(userCredential.user, { displayName: formData.fullName })
-      
-      // Send email verification
-      await sendEmailVerification(userCredential.user)
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+        callbackUrl,
+      })
 
-      const batch = writeBatch(db)
-      const userId = userCredential.user.uid
-      const userReferralCode = generateReferralCode()
-
-      // Check uniqueness of referral code
-      // In production, add a retry loop
-
-      const userProfile = {
-        uid: userId,
-        fullName: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
-        role: formData.role,
-        kycStatus: 'pending',
-        isActive: true,
-        onboardingCompleted: false,
-        state: formData.state,
-        city: formData.city,
-        referralCode: userReferralCode,
-        referredBy: referralCode,
-        referralCount: 0,
-        referralRewardKwh: 0,
-        termsAcceptedAt: new Date().toISOString(),
-        termsVersion: process.env.NEXT_PUBLIC_TERMS_VERSION || 'v1.0',
-        privacyAcceptedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-
-      const wallet = {
-        userId: userId,
-        kwhBalance: 0,
-        nairaBalance: 0,
-        totalEarned: 0,
-        totalSpent: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-
-      batch.set(doc(db, 'users', userId), userProfile)
-      batch.set(doc(db, 'wallets', userId), wallet)
-      await batch.commit()
-
-      // If referred by someone, add referral reward after onboarding
-      if (referralCode) {
-        // This will be processed when user completes onboarding
-        console.log('User referred by:', referralCode)
-      }
-
-      router.push('/onboarding')
-    } catch (err: any) {
-      console.error(err)
-      if (err.code === 'auth/email-already-in-use') {
-        setError('Email already registered. Sign in instead.')
-      } else if (err.code === 'auth/weak-password') {
-        setError('Password is too weak. Use at least 6 characters.')
+      if (result?.error) {
+        // Show specific error message
+        if (result.error === 'CredentialsSignin') {
+          setError('Invalid email or password. Please try again.')
+        } else {
+          setError(result.error)
+        }
+        setLoading(false)
       } else {
-        setError('Failed to create account. Please try again.')
+        router.push(callbackUrl)
       }
-    } finally {
+    } catch (err) {
+      setError('Failed to sign in. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true)
+    setError('')
+    const result = await signIn('google', { callbackUrl, redirect: false })
+    if (result?.error) {
+      setError('Google sign in failed. Please try again.')
       setLoading(false)
     }
   }
@@ -151,8 +62,8 @@ export default function SignUpPage() {
           <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center mx-auto mb-4">
             <Icons.Lightning className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Create Account</h1>
-          <p className="text-gray-400 mt-2">Join the energy trading revolution</p>
+          <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
+          <p className="text-gray-400 mt-2">Sign in to your EnerShare account</p>
         </div>
 
         {error && (
@@ -163,37 +74,11 @@ export default function SignUpPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Full Name</label>
-            <input
-              type="text"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-          </div>
-
-          <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">Email Address</label>
             <input
               type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Phone Number</label>
-            <input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="08012345678"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             />
@@ -203,95 +88,17 @@ export default function SignUpPage() {
             <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
             <input
               type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">I want to</label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'consumer', label: 'Buy Energy' },
-                { value: 'producer', label: 'Sell Energy' },
-                { value: 'retailer', label: 'Both' },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: option.value })}
-                  className={`py-2 rounded-lg text-sm font-medium transition ${
-                    formData.role === option.value
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">State</label>
-              <select
-                name="state"
-                value={formData.state}
-                onChange={handleChange}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                {NIGERIAN_STATES.map(state => (
-                  <option key={state} value={state}>{state}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">City</label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="flex items-start gap-3 pt-2">
-            <input
-              type="checkbox"
-              id="acceptTerms"
-              checked={acceptTerms}
-              onChange={(e) => setAcceptTerms(e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-gray-600 bg-gray-700 text-green-600 focus:ring-green-500"
-            />
-            <label htmlFor="acceptTerms" className="text-sm text-gray-300">
-              I accept the{' '}
-              <Link href="/terms" className="text-green-500 hover:underline">
-                Terms of Service
-              </Link>
-              {' '}and{' '}
-              <Link href="/privacy" className="text-green-500 hover:underline">
-                Privacy Policy
-              </Link>
-            </label>
+          <div className="text-right">
+            <Link href="/auth/forgot-password" className="text-sm text-green-500 hover:underline">
+              Forgot Password?
+            </Link>
           </div>
 
           <button
@@ -302,24 +109,39 @@ export default function SignUpPage() {
             {loading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
             ) : (
-              <>
-                <Icons.Lightning className="w-5 h-5" />
-                Create Account
-              </>
+              'Sign In'
             )}
           </button>
         </form>
 
-        <p className="text-center text-gray-400 text-sm mt-6">
-          Already have an account?{' '}
-          <Link href="/auth/signin" className="text-green-500 hover:underline">
-            Sign in
-          </Link>
-        </p>
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-700"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-gray-800 text-gray-400">Or</span>
+          </div>
+        </div>
 
-        <p className="text-center text-xs text-gray-500 mt-4">
-          By creating an account, you agree to receive a verification email.
-          Check your inbox to unlock all features.
+        <button
+          onClick={handleGoogleSignIn}
+          disabled={loading}
+          className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+          </svg>
+          Continue with Google
+        </button>
+
+        <p className="text-center text-gray-400 text-sm mt-6">
+          Don't have an account?{' '}
+          <Link href="/auth/signup" className="text-green-500 hover:underline">
+            Sign up
+          </Link>
         </p>
       </div>
     </div>
