@@ -5,11 +5,24 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { db } from '@/lib/firebase/client'
 import { collection, query, where, getDocs } from 'firebase/firestore'
-import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts'
 import { Icons } from '@/components/icons'
+
+// Dynamically import recharts to avoid SSR issues
+const BarChart = dynamic(() => import('recharts').then(mod => mod.BarChart), { ssr: false })
+const Bar = dynamic(() => import('recharts').then(mod => mod.Bar), { ssr: false })
+const LineChart = dynamic(() => import('recharts').then(mod => mod.LineChart), { ssr: false })
+const Line = dynamic(() => import('recharts').then(mod => mod.Line), { ssr: false })
+const PieChart = dynamic(() => import('recharts').then(mod => mod.PieChart), { ssr: false })
+const Pie = dynamic(() => import('recharts').then(mod => mod.Pie), { ssr: false })
+const Cell = dynamic(() => import('recharts').then(mod => mod.Cell), { ssr: false })
+const XAxis = dynamic(() => import('recharts').then(mod => mod.XAxis), { ssr: false })
+const YAxis = dynamic(() => import('recharts').then(mod => mod.YAxis), { ssr: false })
+const CartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false })
+const Tooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr: false })
+const Legend = dynamic(() => import('recharts').then(mod => mod.Legend), { ssr: false })
+const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
+
+import dynamic from 'next/dynamic'
 
 interface Transaction {
   id: string
@@ -28,12 +41,17 @@ export default function AnalyticsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'year'>('month')
+  const [chartsReady, setChartsReady] = useState(false)
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth/signin')
     }
   }, [user, authLoading, router])
+
+  useEffect(() => {
+    setChartsReady(true)
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -67,7 +85,6 @@ export default function AnalyticsPage() {
     }
   }
 
-  // Prepare chart data
   const weeklyData = () => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     const data: Record<string, { day: string; kwh: number; naira: number }> = {}
@@ -123,8 +140,6 @@ export default function AnalyticsPage() {
     )
   }
 
-  const isProducer = profile?.role === 'producer' || profile?.role === 'retailer'
-
   return (
     <div className="min-h-screen bg-gray-900 pb-12">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -147,7 +162,6 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-gray-800 rounded-xl p-5">
             <div className="flex items-center gap-2 text-gray-400 mb-2">
@@ -174,99 +188,35 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="bg-gray-800 rounded-xl p-5">
+        {chartsReady && (
+          <div className="bg-gray-800 rounded-xl p-5 mb-6">
             <h3 className="text-white font-semibold mb-4">Energy Consumption</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={timeRange === 'month' ? monthlyData() : weeklyData()}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey={timeRange === 'month' ? 'month' : 'day'} stroke="#9CA3AF" />
-                <YAxis stroke="#9CA3AF" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
-                  labelStyle={{ color: '#F9FAFB' }}
-                />
-                <Legend />
-                <Bar dataKey="kwh" name="kWh" fill="#00FF85" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="bg-gray-800 rounded-xl p-5">
-            <h3 className="text-white font-semibold mb-4">Spending Trend</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={timeRange === 'month' ? monthlyData() : weeklyData()}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey={timeRange === 'month' ? 'month' : 'day'} stroke="#9CA3AF" />
-                <YAxis stroke="#9CA3AF" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
-                  labelStyle={{ color: '#F9FAFB' }}
-                />
-                <Legend />
-                <Line type="monotone" dataKey="naira" name="Amount (₦)" stroke="#F5A623" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gray-800 rounded-xl p-5">
-            <h3 className="text-white font-semibold mb-4">Energy Source Breakdown</h3>
-            {sourceData().length === 0 ? (
-              <p className="text-gray-400 text-center py-12">No data available</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={sourceData()}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {sourceData().map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer>
+                <BarChart data={timeRange === 'month' ? monthlyData() : weeklyData()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey={timeRange === 'month' ? 'month' : 'day'} stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#1F2937', border: 'none' }}
-                    formatter={(value) => `${(value as number).toFixed(1)} kWh`}
+                    labelStyle={{ color: '#F9FAFB' }}
                   />
-                </PieChart>
+                  <Legend />
+                  <Bar dataKey="kwh" name="kWh" fill="#00FF85" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
-            )}
-          </div>
-
-          <div className="bg-gray-800 rounded-xl p-5">
-            <h3 className="text-white font-semibold mb-4">Insights</h3>
-            <div className="space-y-4">
-              {avgPrice < 100 && (
-                <div className="flex items-start gap-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                  <Icons.Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-white text-sm font-medium">Great savings!</p>
-                    <p className="text-gray-400 text-xs">
-                      You're paying below the market average of ₦125/kWh
-                    </p>
-                  </div>
-                </div>
-              )}
-              {transactions.length === 0 && (
-                <p className="text-gray-400 text-center py-8">No transaction data available</p>
-              )}
-              {transactions.length > 0 && (
-                <div className="text-center text-gray-400 text-sm">
-                  <p>Track your energy consumption and spending over time</p>
-                </div>
-              )}
             </div>
           </div>
-        </div>
+        )}
+
+        {transactions.length === 0 && (
+          <div className="bg-gray-800 rounded-xl p-12 text-center">
+            <p className="text-gray-400">No transaction data available</p>
+            <Link href="/marketplace" className="text-green-500 hover:underline mt-2 inline-block">
+              Start trading
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   )

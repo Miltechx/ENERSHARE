@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { EnergyListing } from '@/types'
+import { Icons } from './icons'
 
 interface PurchaseModalProps {
   isOpen: boolean
@@ -65,7 +66,7 @@ export default function PurchaseModal({ isOpen, onClose, listing, onSuccess }: P
         throw new Error(initData.error || 'Failed to initialize payment')
       }
 
-      // Step 2: Open Paystack popup
+      // Step 2: Open Paystack popup (dynamic import to avoid SSR issues)
       const PaystackPop = (await import('@paystack/inline-js')).default
       const handler = PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
@@ -104,7 +105,7 @@ export default function PurchaseModal({ isOpen, onClose, listing, onSuccess }: P
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-white">Purchase Energy</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
-            ✕
+            <Icons.Close className="w-5 h-5" />
           </button>
         </div>
 

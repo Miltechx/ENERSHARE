@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { db } from '@/lib/firebase/client'
-import { collection, query, where, getDocs, orderBy, startAfter, limit } from 'firebase/firestore'
-import { Transaction, WithdrawalRequest } from '@/types'
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
+import { Transaction } from '@/types'
+import { Icons } from '@/components/icons'
 
 export default function WalletPage() {
   const { user, wallet, loading: authLoading, refreshWallet } = useAuth()
@@ -82,6 +83,7 @@ export default function WalletPage() {
         throw new Error(initData.error || 'Failed to initialize payment')
       }
 
+      // Dynamic import to avoid SSR issues
       const PaystackPop = (await import('@paystack/inline-js')).default
       const handler = PaystackPop.setup({
         key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
@@ -175,34 +177,27 @@ export default function WalletPage() {
   return (
     <div className="min-h-screen bg-gray-900 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white">Wallet</h1>
-          <p className="text-gray-400 mt-1">Manage your funds and transaction history</p>
-        </div>
+        <h1 className="text-3xl font-bold text-white mb-8">Wallet</h1>
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6">
             <p className="text-green-100 text-sm">TOTAL BALANCE</p>
-            <p className="text-4xl font-bold text-white mt-1">
+            <p className="text-3xl font-bold text-white mt-1">
               ₦{wallet?.nairaBalance.toLocaleString() || 0}
             </p>
-            <p className="text-green-100 text-xs mt-2">Available for withdrawal</p>
           </div>
           <div className="bg-gray-800 rounded-xl p-6">
             <p className="text-gray-400 text-sm">KWH BALANCE</p>
-            <p className="text-3xl font-bold text-white mt-1">
+            <p className="text-2xl font-bold text-white mt-1">
               {wallet?.kwhBalance || 0} kWh
             </p>
-            <p className="text-gray-500 text-xs mt-2">Energy credits</p>
           </div>
           <div className="bg-gray-800 rounded-xl p-6">
             <p className="text-gray-400 text-sm">TOTAL EARNED</p>
-            <p className="text-3xl font-bold text-white mt-1">
+            <p className="text-2xl font-bold text-white mt-1">
               ₦{wallet?.totalEarned.toLocaleString() || 0}
             </p>
-            <p className="text-gray-500 text-xs mt-2">Lifetime earnings</p>
           </div>
         </div>
 
@@ -284,9 +279,6 @@ export default function WalletPage() {
                   max={wallet?.nairaBalance || 0}
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  Available: ₦{wallet?.nairaBalance.toLocaleString() || 0} | Minimum: ₦1,000
-                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -303,9 +295,6 @@ export default function WalletPage() {
                   <option value="First Bank">First Bank</option>
                   <option value="UBA">UBA</option>
                   <option value="Zenith Bank">Zenith Bank</option>
-                  <option value="Opay">Opay</option>
-                  <option value="Moniepoint">Moniepoint</option>
-                  <option value="Kuda">Kuda</option>
                 </select>
               </div>
               <div>
@@ -320,18 +309,6 @@ export default function WalletPage() {
                   className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Account Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={accountName}
-                  onChange={(e) => setAccountName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
-              </div>
               <button
                 onClick={handleWithdraw}
                 disabled={withdrawLoading}
@@ -339,9 +316,6 @@ export default function WalletPage() {
               >
                 {withdrawLoading ? 'Processing...' : 'Request Withdrawal'}
               </button>
-              <p className="text-xs text-gray-400 text-center">
-                Withdrawals are processed within 1-2 business days
-              </p>
             </div>
           </div>
         )}
