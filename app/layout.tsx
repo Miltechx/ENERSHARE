@@ -1,15 +1,9 @@
-import type { Metadata } from 'next'
 import './globals.css'
+import { AuthProvider } from '@/lib/auth-context'
 
-export const metadata: Metadata = {
+export const metadata = {
   title: 'EnerShare',
   description: 'Peer-to-Peer Energy Trading Platform',
-}
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
 }
 
 export default function RootLayout({
@@ -19,7 +13,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   )
 }
