@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
-import Navbar from '@/components/Navbar'
-import { Icons } from '@/components/icons'
+import ConditionalNavbar from '@/components/ConditionalNavbar'
 
 export const metadata: Metadata = {
   title: 'EnerShare - Peer-to-Peer Energy Trading Platform',
@@ -34,12 +33,21 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover"
+        />
       </head>
       <body className="bg-gray-900 text-white antialiased">
         <AuthProvider>
-          <Navbar />
-          <main className="pt-16 min-h-screen">
+          {/*
+            ConditionalNavbar renders the global Navbar only on public/marketing
+            pages (home, about, pricing, faq, waitlist, contact, auth).
+            Dashboard, wallet, marketplace, admin etc. have their own navigation
+            and do not need the global Navbar.
+          */}
+          <ConditionalNavbar />
+          <main className="min-h-screen">
             {children}
           </main>
         </AuthProvider>
