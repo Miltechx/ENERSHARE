@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth, adminDb } from '@/lib/firebase/admin'
 
 export async function POST(request: NextRequest) {
+  // ─── Auth ────────────────────────────────────────────────────────────────────
   const authHeader = request.headers.get('Authorization')
   const token = authHeader?.replace('Bearer ', '')
 
@@ -9,145 +10,109 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  let userId: string
   try {
     const decoded = await adminAuth.verifyIdToken(token)
-    const userId = decoded.uid
+    userId = decoded.uid
+  } catch {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+  }
 
-    const { reference } = await request.json()
+  const { reference } = await request.json()
+  if (!reference) {
+    return NextResponse.json({ error: 'Reference required' }, { status: 400 })
+  }
 
-    if (!reference) {
-      return NextResponse.json({ error: 'Reference required' }, { status: 400 })
-    }
+  try {
+    // ── 1. Check pending_payments (matches what initialize creates) ──────────────
+    const pendingRef = adminDb.collection('pending_payments').doc(reference)
+    const pendingDoc = await pendingRef.get()
 
-    // Check idempotency
-    const paymentLog = await adminDb.collection('paymentLogs').doc(reference).get()
-    if (!paymentLog.exists) {
+    if (!pendingDoc.exists) {
       return NextResponse.json({ error: 'Transaction not found' }, { status: 404 })
     }
 
-    const paymentData = paymentLog.data()
-    if (paymentData?.status === 'success') {
+    const pending = pendingDoc.data()!
+
+    // ── 2. Guard: already processed (webhook may have fired first) ───────────────
+    if (pending.status === 'completed') {
       return NextResponse.json({ success: true, message: 'Already processed' })
     }
 
-    // Verify with Paystack
-    const paystackResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-      },
+    // ── 3. Confirm this reference belongs to the requesting user ─────────────────
+    if (pending.userId !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    // ── 4. Verify with Paystack ──────────────────────────────────────────────────
+    const paystackRes = await fetch(
+      `https://api.paystack.co/transaction/verify/${reference}`,
+      { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }
+    )
+    const paystackData = await paystackRes.json()
+
+    if (!paystackData.status || paystackData.data?.status !== 'success') {
+      await pendingRef.update({
+        status:   'failed',
+        failedAt: new Date().toISOString(),
+        error:    paystackData.message || 'Paystack verification failed',
+      })
+      return NextResponse.json({ error: 'Payment not confirmed by Paystack' }, { status: 400 })
+    }
+
+    const amountInNaira = paystackData.data.amount / 100
+
+    // ── 5. Credit wallet — nairaBalance (consistent with entire app) ─────────────
+    const walletRef = adminDb.collection('wallets').doc(userId)
+    const walletDoc = await walletRef.get()
+
+    if (walletDoc.exists) {
+      await walletRef.update({
+        nairaBalance: (walletDoc.data()?.nairaBalance || 0) + amountInNaira,
+        updatedAt:    new Date().toISOString(),
+      })
+    } else {
+      await walletRef.set({
+        userId,
+        nairaBalance: amountInNaira,
+        kwhBalance:   0,
+        totalEarned:  0,
+        totalSpent:   0,
+        createdAt:    new Date().toISOString(),
+        updatedAt:    new Date().toISOString(),
+      })
+    }
+
+    // ── 6. Mark pending payment as completed ─────────────────────────────────────
+    await pendingRef.update({
+      status:      'completed',
+      completedAt: new Date().toISOString(),
     })
 
-    const data = await paystackResponse.json()
+    // ── 7. Record deposit ────────────────────────────────────────────────────────
+    await adminDb.collection('deposits').doc(reference).set({
+      userId,
+      reference,
+      amountNaira:   amountInNaira,
+      status:        'completed',
+      paymentMethod: 'paystack',
+      completedAt:   new Date().toISOString(),
+    }, { merge: true }) // merge: true prevents error if webhook already created this
 
-    if (!data.status || data.data.status !== 'success') {
-      await adminDb.collection('paymentLogs').doc(reference).update({
-        status: 'failed',
-        error: data.message,
-      })
-      return NextResponse.json({ error: 'Payment verification failed' }, { status: 400 })
-    }
+    // ── 8. Notification ──────────────────────────────────────────────────────────
+    await adminDb.collection('notifications').add({
+      userId,
+      title:     'Wallet Funded',
+      message:   `₦${amountInNaira.toLocaleString()} has been added to your wallet.`,
+      type:      'payment',
+      read:      false,
+      createdAt: new Date().toISOString(),
+    })
 
-    const { metadata, amount } = data.data
-    const amountNaira = amount / 100
+    return NextResponse.json({ success: true, amountNaira: amountInNaira })
 
-    // Use writeBatch for atomic updates
-    const batch = adminDb.batch()
-
-    // Update payment log
-    const paymentLogRef = adminDb.collection('paymentLogs').doc(reference)
-    batch.update(paymentLogRef, { status: 'success', verifiedAt: new Date().toISOString() })
-
-    if (metadata.type === 'purchase') {
-      // Handle energy purchase
-      const listingRef = adminDb.collection('listings').doc(metadata.listingId)
-      const listingDoc = await listingRef.get()
-
-      if (!listingDoc.exists) {
-        return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
-      }
-
-      const listing = listingDoc.data()
-      const kwhAmount = metadata.kwhAmount
-      const totalPrice = kwhAmount * metadata.pricePerKwh
-      const fee = totalPrice * 0.02
-      const sellerPayout = totalPrice - fee
-
-      // Update listing kWh available
-      batch.update(listingRef, {
-        kwhAvailable: listing.kwhAvailable - kwhAmount,
-        kwhSold: (listing.kwhSold || 0) + kwhAmount,
-        updatedAt: new Date().toISOString(),
-      })
-
-      // Update buyer's wallet kWh balance
-      const buyerWalletRef = adminDb.collection('wallets').doc(userId)
-      const buyerWalletDoc = await buyerWalletRef.get()
-      const buyerCurrentKwh = buyerWalletDoc.exists ? buyerWalletDoc.data()?.kwhBalance || 0 : 0
-      batch.set(buyerWalletRef, {
-        kwhBalance: buyerCurrentKwh + kwhAmount,
-        nairaBalance: buyerWalletDoc.exists ? buyerWalletDoc.data()?.nairaBalance || 0 : 0,
-        totalSpent: (buyerWalletDoc.exists ? buyerWalletDoc.data()?.totalSpent || 0 : 0) + totalPrice,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true })
-
-      // Update seller's wallet naira balance
-      const sellerWalletRef = adminDb.collection('wallets').doc(metadata.sellerId)
-      const sellerWalletDoc = await sellerWalletRef.get()
-      const sellerCurrentNaira = sellerWalletDoc.exists ? sellerWalletDoc.data()?.nairaBalance || 0 : 0
-      batch.set(sellerWalletRef, {
-        nairaBalance: sellerCurrentNaira + sellerPayout,
-        totalEarned: (sellerWalletDoc.exists ? sellerWalletDoc.data()?.totalEarned || 0 : 0) + sellerPayout,
-        updatedAt: new Date().toISOString(),
-      }, { merge: true })
-
-      // Create transaction record
-      const transactionRef = adminDb.collection('transactions').doc()
-      batch.set(transactionRef, {
-        buyerId: userId,
-        sellerId: metadata.sellerId,
-        listingId: metadata.listingId,
-        kwhAmount: kwhAmount,
-        pricePerKwh: metadata.pricePerKwh,
-        totalNaira: totalPrice,
-        platformFee: fee,
-        sellerPayout: sellerPayout,
-        status: 'completed',
-        type: 'purchase',
-        paystackReference: reference,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })
-
-      // Create notification for buyer
-      const buyerNotifRef = adminDb.collection('notifications').doc()
-      batch.set(buyerNotifRef, {
-        userId: userId,
-        title: 'Purchase Successful',
-        message: `You purchased ${kwhAmount} kWh of energy for ₦${totalPrice.toLocaleString()}`,
-        type: 'transaction',
-        isRead: false,
-        link: '/wallet',
-        createdAt: new Date().toISOString(),
-      })
-
-      // Create notification for seller
-      const sellerNotifRef = adminDb.collection('notifications').doc()
-      batch.set(sellerNotifRef, {
-        userId: metadata.sellerId,
-        title: 'Energy Sold',
-        message: `Your energy listing sold ${kwhAmount} kWh for ₦${sellerPayout.toLocaleString()}`,
-        type: 'transaction',
-        isRead: false,
-        link: '/wallet',
-        createdAt: new Date().toISOString(),
-      })
-    }
-
-    await batch.commit()
-
-    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Paystack verify error:', error)
+    console.error('Verify route error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
