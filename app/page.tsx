@@ -1,51 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Icons } from '@/components/icons'
 
 export default function HomePage() {
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        scrolled ? 'bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 py-3' : 'bg-transparent py-5'
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-              <Icons.Lightning className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-xl text-white">EnerShare</span>
-          </Link>
-          <div className="hidden md:flex items-center gap-6">
-            <Link href="/pricing" className="text-gray-300 hover:text-green-500 transition">Pricing</Link>
-            <Link href="/faq" className="text-gray-300 hover:text-green-500 transition">FAQ</Link>
-            <Link href="/waitlist" className="text-gray-300 hover:text-green-500 transition">Waitlist</Link>
-            <Link href="/about" className="text-gray-300 hover:text-green-500 transition">About</Link>
-            <Link href="/contact" className="text-gray-300 hover:text-green-500 transition">Contact</Link>
-            <Link href="/auth/signin" className="text-gray-300 hover:text-green-500 transition">Sign In</Link>
-            <Link href="/auth/signup" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
-              Get Started
-            </Link>
-          </div>
-          {/* Mobile menu button */}
-          <button className="md:hidden text-white">
-            <Icons.Menu className="w-6 h-6" />
-          </button>
-        </div>
-      </nav>
 
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-20 px-4 text-center">
+      {/* Hero Section — pt-24 accounts for the fixed global Navbar height */}
+      <section className="relative pt-24 pb-20 px-4 text-center">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
             Trade Energy With{' '}
@@ -56,11 +19,17 @@ export default function HomePage() {
             Buy and sell electricity instantly with people around you. Save up to 30% or earn ₦50k+ monthly.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/signup" className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold transition inline-flex items-center justify-center gap-2">
+            <Link
+              href="/auth/signup"
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold transition inline-flex items-center justify-center gap-2"
+            >
               <Icons.Lightning className="w-5 h-5" />
               Start Earning Free
             </Link>
-            <Link href="/marketplace" className="border border-gray-600 text-gray-300 hover:border-green-500 hover:text-green-500 px-8 py-3 rounded-full font-semibold transition">
+            <Link
+              href="/marketplace"
+              className="border border-gray-600 text-gray-300 hover:border-green-500 hover:text-green-500 px-8 py-3 rounded-full font-semibold transition"
+            >
               Browse Marketplace
             </Link>
           </div>
@@ -125,8 +94,11 @@ export default function HomePage() {
       <section className="py-16 px-4 text-center">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-3xl font-bold text-white mb-4">Ready to Join the Energy Revolution?</h2>
-          <p className="text-gray-400 mb-8">Start earning from your energy assets today. It's free to join.</p>
-          <Link href="/auth/signup" className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold transition inline-flex items-center gap-2">
+          <p className="text-gray-400 mb-8">Start earning from your energy assets today. It&apos;s free to join.</p>
+          <Link
+            href="/auth/signup"
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-full font-semibold transition inline-flex items-center gap-2"
+          >
             <Icons.Lightning className="w-5 h-5" />
             Create Free Account
           </Link>
@@ -144,6 +116,7 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+
     </div>
   )
 }
