@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { db } from '@/lib/firebase/client'
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore'
@@ -32,10 +33,15 @@ export default function AdminPage() {
   })
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    // Wait until auth is done loading before redirecting
+    if (authLoading) return
+    if (!user) {
       router.push('/auth/signin')
+      return
     }
-    if (!authLoading && profile && !profile.is_admin) {
+    // profile may still be null briefly after user resolves — wait for it
+    if (profile === null) return
+    if (!profile?.is_admin) {
       router.push('/dashboard')
     }
   }, [user, authLoading, profile, router])
@@ -51,14 +57,13 @@ export default function AdminPage() {
     try {
       const usersSnapshot = await getDocs(collection(db, 'users'))
       const usersList: User[] = []
-      
+
       for (const docSnap of usersSnapshot.docs) {
         const userData = docSnap.data()
-        // Get wallet balance
         const walletRef = doc(db, 'wallets', docSnap.id)
         const walletSnap = await getDoc(walletRef)
         const walletData = walletSnap.data()
-        
+
         usersList.push({
           id: docSnap.id,
           fullName: userData.fullName || '—',
@@ -81,8 +86,8 @@ export default function AdminPage() {
   const fetchStats = async () => {
     try {
       const usersSnapshot = await getDocs(collection(db, 'users'))
-      const usersList = usersSnapshot.docs.map(doc => doc.data())
-      
+      const usersList = usersSnapshot.docs.map(d => d.data())
+
       setStats({
         totalUsers: usersSnapshot.size,
         totalProducers: usersList.filter(u => u.role === 'producer' || u.role === 'retailer').length,
@@ -122,7 +127,8 @@ export default function AdminPage() {
     }
   }
 
-  if (authLoading || loading) {
+  // Show spinner while auth OR profile is still loading
+  if (authLoading || (user && profile === undefined) || loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
@@ -137,7 +143,9 @@ export default function AdminPage() {
           <Icons.Lightning className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white">Access Denied</h1>
           <p className="text-gray-400 mt-2">You don't have admin permissions.</p>
-          <Link href="/dashboard" className="inline-block mt-4 text-green-500 hover:underline">Back to Dashboard</Link>
+          <Link href="/dashboard" className="inline-block mt-4 text-green-500 hover:underline">
+            Back to Dashboard
+          </Link>
         </div>
       </div>
     )
@@ -154,7 +162,9 @@ export default function AdminPage() {
             <Icons.Lightning className="w-8 h-8 text-green-500" />
             <span className="text-xl font-bold text-white">EnerShare Admin</span>
           </div>
-          <Link href="/dashboard" className="text-gray-300 hover:text-green-500 transition">Back to Dashboard</Link>
+          <Link href="/dashboard" className="text-gray-300 hover:text-green-500 transition">
+            Back to Dashboard
+          </Link>
         </div>
       </header>
 
@@ -181,8 +191,23 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex space-x-2 border-b border-gray-700 mb-6">
-          <button onClick={() => setActiveTab('users')} className={`px-4 py-2 text-sm font-medium transition ${activeTab === 'users' ? 'text-green-500 border-b-2 border-green-500' : 'text-gray-400'}`}>All Users</button>
-          <button onClick={() => setActiveTab('kyc')} className={`px-4 py-2 text-sm font-medium transition flex items-center gap-2 ${activeTab === 'kyc' ? 'text-green-500 border-b-2 border-green-500' : 'text-gray-400'}`}>KYC Pending {stats.pendingKyc > 0 && <span className="bg-yellow-500 text-black text-xs px-2 py-0.5 rounded-full">{stats.pendingKyc}</span>}</button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 text-sm font-medium transition ${activeTab === 'users' ? 'text-green-500 border-b-2 border-green-500' : 'text-gray-400'}`}
+          >
+            All Users
+          </button>
+          <button
+            onClick={() => setActiveTab('kyc')}
+            className={`px-4 py-2 text-sm font-medium transition flex items-center gap-2 ${activeTab === 'kyc' ? 'text-green-500 border-b-2 border-green-500' : 'text-gray-400'}`}
+          >
+            KYC Pending{' '}
+            {stats.pendingKyc > 0 && (
+              <span className="bg-yellow-500 text-black text-xs px-2 py-0.5 rounded-full">
+                {stats.pendingKyc}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Users Table */}
@@ -202,14 +227,14 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className="border-t border-gray-700">
-                      <td className="p-3 text-white">{user.fullName}</td>
-                      <td className="p-3 text-gray-400 text-sm">{user.email}</td>
+                  {users.map((u) => (
+                    <tr key={u.id} className="border-t border-gray-700">
+                      <td className="p-3 text-white">{u.fullName}</td>
+                      <td className="p-3 text-gray-400 text-sm">{u.email}</td>
                       <td className="p-3">
                         <select
-                          value={user.role}
-                          onChange={(e) => updateUserRole(user.id, e.target.value)}
+                          value={u.role}
+                          onChange={(e) => updateUserRole(u.id, e.target.value)}
                           className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white"
                         >
                           <option value="consumer">Consumer</option>
@@ -218,26 +243,43 @@ export default function AdminPage() {
                         </select>
                       </td>
                       <td className="p-3">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          user.kycStatus === 'verified' ? 'bg-green-500/20 text-green-400' :
-                          user.kycStatus === 'submitted' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {user.kycStatus}
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            u.kycStatus === 'verified'
+                              ? 'bg-green-500/20 text-green-400'
+                              : u.kycStatus === 'submitted'
+                              ? 'bg-yellow-500/20 text-yellow-400'
+                              : 'bg-gray-500/20 text-gray-400'
+                          }`}
+                        >
+                          {u.kycStatus}
                         </span>
                       </td>
-                      <td className="p-3 text-white">₦{user.nairaBalance?.toLocaleString() || 0}</td>
+                      <td className="p-3 text-white">₦{u.nairaBalance?.toLocaleString() || 0}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-1 rounded-full text-xs ${user.is_admin ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-500/20 text-gray-400'}`}>
-                          {user.is_admin ? 'Yes' : 'No'}
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${u.is_admin ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-500/20 text-gray-400'}`}
+                        >
+                          {u.is_admin ? 'Yes' : 'No'}
                         </span>
                       </td>
                       <td className="p-3">
                         <div className="flex gap-2">
-                          {!user.is_admin && (
-                            <button onClick={() => makeAdmin(user.id, true)} className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 px-2 py-1 rounded text-xs">Make Admin</button>
+                          {!u.is_admin && (
+                            <button
+                              onClick={() => makeAdmin(u.id, true)}
+                              className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 px-2 py-1 rounded text-xs"
+                            >
+                              Make Admin
+                            </button>
                           )}
-                          {user.kycStatus === 'submitted' && (
-                            <button onClick={() => updateKycStatus(user.id, 'verified')} className="bg-green-600/20 hover:bg-green-600/30 text-green-400 px-2 py-1 rounded text-xs">Verify KYC</button>
+                          {u.kycStatus === 'submitted' && (
+                            <button
+                              onClick={() => updateKycStatus(u.id, 'verified')}
+                              className="bg-green-600/20 hover:bg-green-600/30 text-green-400 px-2 py-1 rounded text-xs"
+                            >
+                              Verify KYC
+                            </button>
                           )}
                         </div>
                       </td>
@@ -258,16 +300,26 @@ export default function AdminPage() {
                 <p className="text-gray-400">No pending KYC submissions</p>
               </div>
             ) : (
-              pendingKycUsers.map((user) => (
-                <div key={user.id} className="bg-gray-800 rounded-xl p-5">
+              pendingKycUsers.map((u) => (
+                <div key={u.id} className="bg-gray-800 rounded-xl p-5">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-white font-semibold">{user.fullName}</p>
-                      <p className="text-gray-400 text-sm">{user.email}</p>
+                      <p className="text-white font-semibold">{u.fullName}</p>
+                      <p className="text-gray-400 text-sm">{u.email}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => updateKycStatus(user.id, 'verified')} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">Approve</button>
-                      <button onClick={() => updateKycStatus(user.id, 'rejected')} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm">Reject</button>
+                      <button
+                        onClick={() => updateKycStatus(u.id, 'verified')}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => updateKycStatus(u.id, 'rejected')}
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+                      >
+                        Reject
+                      </button>
                     </div>
                   </div>
                 </div>

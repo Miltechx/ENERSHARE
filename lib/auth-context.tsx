@@ -25,16 +25,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const fetchProfile = async (uid: string) => {
-    const profileDoc = await getDoc(doc(db, 'users', uid))
-    if (profileDoc.exists()) {
-      setProfile(profileDoc.data())
+    try {
+      const snap = await getDoc(doc(db, 'users', uid))
+      if (snap.exists()) setProfile(snap.data())
+    } catch (err) {
+      // Non-fatal — user is still authenticated
+      console.error('fetchProfile error:', err)
     }
   }
 
   const fetchWallet = async (uid: string) => {
-    const walletDoc = await getDoc(doc(db, 'wallets', uid))
-    if (walletDoc.exists()) {
-      setWallet(walletDoc.data())
+    try {
+      const snap = await getDoc(doc(db, 'wallets', uid))
+      if (snap.exists()) setWallet(snap.data())
+    } catch (err) {
+      console.error('fetchWallet error:', err)
     }
   }
 
@@ -57,18 +62,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthChange(async (currentUser) => {
       setUser(currentUser)
       if (currentUser) {
-        await Promise.all([fetchProfile(currentUser.uid), fetchWallet(currentUser.uid)])
+        // Fetch in parallel; errors are caught inside each function
+        // so loading ALWAYS resolves even if Firestore is slow or blocked
+        await Promise.all([
+          fetchProfile(currentUser.uid),
+          fetchWallet(currentUser.uid),
+        ])
       } else {
         setProfile(null)
         setWallet(null)
       }
+      // Always reach this line — no more infinite loading on mobile
       setLoading(false)
     })
     return () => unsubscribe()
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, profile, wallet, loading, signOut, refreshProfile, refreshWallet }}>
+    <AuthContext.Provider
+      value={{ user, profile, wallet, loading, signOut, refreshProfile, refreshWallet }}
+    >
       {children}
     </AuthContext.Provider>
   )

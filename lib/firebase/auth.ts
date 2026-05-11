@@ -1,6 +1,5 @@
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   sendPasswordResetEmail,
@@ -8,11 +7,14 @@ import {
   User,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
 } from 'firebase/auth'
-import { app } from './config'
 
-export const auth = getAuth(app)
+// Import the single auth instance from client.ts — this is the one that has
+// browserLocalPersistence set on it. Using getAuth(app) here again would create
+// a second instance that ignores the persistence setting, breaking mobile sessions.
+import { auth } from './client'
+
 export const googleProvider = new GoogleAuthProvider()
 
 export const signUp = async (email: string, password: string, fullName: string) => {
