@@ -1,14 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, getIdToken } from 'firebase/auth'
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider,
+  getIdToken,
+} from 'firebase/auth'
 import { auth, db } from '@/lib/firebase/client'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { Icons } from '@/components/icons'
 
-// Creates the __session cookie the middleware reads
 async function createSession(user: any) {
   const idToken = await getIdToken(user)
   const res = await fetch('/api/auth/session', {
@@ -45,14 +51,42 @@ async function ensureUserDocs(user: any) {
   }
 }
 
+// Detect mobile browsers — popups are blocked on most mobile browsers
+function isMobile() {
+  if (typeof window === 'undefined') return false
+  return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+}
+
 export default function SignInPage() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
 
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading]   = useState(false)
+  const [loading, setLoading]   = useState(true) // true initially to handle redirect result
   const [error, setError]       = useState('')
+
+  // Handle the redirect result when user comes back from Google on mobile
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth)
+        if (result?.user) {
+          await ensureUserDocs(result.user)
+          await createSession(result.user)
+          window.location.href = callbackUrl
+          return
+        }
+      } catch (err: any) {
+        const code = err?.code ?? ''
+        if (code !== 'auth/no-current-user') {
+          setError('Google sign in failed. Please try again.')
+        }
+      }
+      setLoading(false)
+    }
+    handleRedirectResult()
+  }, [callbackUrl])
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,7 +96,6 @@ export default function SignInPage() {
       const { user } = await signInWithEmailAndPassword(auth, email, password)
       await ensureUserDocs(user)
       await createSession(user)
-      // window.location forces full reload so mobile browser reads new cookie
       window.location.href = callbackUrl
     } catch (err: any) {
       const code = err?.code ?? ''
@@ -75,7 +108,6 @@ export default function SignInPage() {
       } else {
         setError(err.message || 'Failed to sign in. Please try again.')
       }
-    } finally {
       setLoading(false)
     }
   }
@@ -85,20 +117,32 @@ export default function SignInPage() {
     setError('')
     try {
       const provider = new GoogleAuthProvider()
-      const { user } = await signInWithPopup(auth, provider)
-      await ensureUserDocs(user)
-      await createSession(user)
-      window.location.href = callbackUrl
+      if (isMobile()) {
+        // Mobile: redirect flow (popup is blocked by mobile browsers)
+        await signInWithRedirect(auth, provider)
+        // Page will reload — result handled in useEffect above
+      } else {
+        // Desktop: popup flow
+        const { user } = await signInWithPopup(auth, provider)
+        await ensureUserDocs(user)
+        await createSession(user)
+        window.location.href = callbackUrl
+      }
     } catch (err: any) {
       const code = err?.code ?? ''
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        // user closed popup — no error
-      } else {
+      if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
         setError('Google sign in failed. Please try again.')
       }
-    } finally {
       setLoading(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500" />
+      </div>
+    )
   }
 
   return (
@@ -121,7 +165,7 @@ export default function SignInPage() {
 
         {error && (
           <div className="bg-red-500/10 border border-red-500 rounded-lg p-3 mb-6">
-            <p className="text-red-500 text-sm">{error}</p>
+            <p className="text-red-400 text-sm">{error}</p>
           </div>
         )}
 
@@ -130,7 +174,7 @@ export default function SignInPage() {
             type="email"
             placeholder="Email Address"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={e => setEmail(e.target.value)}
             className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-base focus:outline-none focus:ring-2 focus:ring-green-500"
             required
           />
@@ -138,7 +182,7 @@ export default function SignInPage() {
             type="password"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={e => setPassword(e.target.value)}
             className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white text-base focus:outline-none focus:ring-2 focus:ring-green-500"
             required
           />
