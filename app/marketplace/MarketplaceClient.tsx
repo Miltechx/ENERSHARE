@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { getIdToken } from 'firebase/auth'
 import { useAuth } from '@/lib/auth-context'
 import { auth, db } from '@/lib/firebase/client'
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy, doc, deleteDoc } from 'firebase/firestore'
 import BackButton from '@/components/BackButton'
 import { Icons } from '@/components/icons'
 
@@ -222,6 +222,7 @@ export default function MarketplaceClient() {
   const [activeListing, setActiveListing] = useState<Listing | null>(null)
   const [successMsg, setSuccessMsg]       = useState('')
   const [showFilters, setShowFilters]     = useState(false)
+  const [deletingId, setDeletingId]       = useState<string | null>(null)
 
   useEffect(() => { fetchListings() }, [filters, sortBy])
 
@@ -252,6 +253,20 @@ export default function MarketplaceClient() {
   const handleBuyClick = (listing: Listing) => {
     if (!user) { router.push('/auth/signin'); return }
     setActiveListing(listing)
+  }
+
+  const handleDeleteListing = async (listingId: string) => {
+    if (!confirm('Delete this listing? This cannot be undone.')) return
+    setDeletingId(listingId)
+    try {
+      await deleteDoc(doc(db, 'listings', listingId))
+      setListings(prev => prev.filter(l => l.id !== listingId))
+      setSuccessMsg('Listing deleted successfully')
+    } catch (err) {
+      console.error('Delete error:', err)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const handlePurchaseSuccess = () => {
@@ -480,8 +495,23 @@ export default function MarketplaceClient() {
                     <p className="text-gray-400 text-sm mb-4">📍 {listing.locationCity}, {listing.locationState}</p>
 
                     {isOwn ? (
-                      <div className="w-full bg-gray-700 text-gray-400 py-2.5 rounded-lg text-center text-sm">
-                        Your listing
+                      <div className="flex gap-2">
+                        <div className="flex-1 bg-gray-700 text-gray-400 py-2 rounded-lg text-center text-xs font-medium">
+                          Your listing
+                        </div>
+                        <Link
+                          href="/listings/mine"
+                          className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg text-xs font-medium transition"
+                        >
+                          Edit
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteListing(listing.id)}
+                          disabled={deletingId === listing.id}
+                          className="px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg text-xs font-medium transition disabled:opacity-50"
+                        >
+                          {deletingId === listing.id ? '...' : 'Delete'}
+                        </button>
                       </div>
                     ) : (
                       <button

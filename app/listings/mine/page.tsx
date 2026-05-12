@@ -13,7 +13,6 @@ import {
   doc,
   updateDoc,
   deleteDoc,
-  orderBy,
 } from 'firebase/firestore'
 import BackButton from '@/components/BackButton'
 import { Icons } from '@/components/icons'
@@ -65,11 +64,16 @@ export default function MyListingsPage() {
     try {
       const q = query(
         collection(db, 'listings'),
-        where('sellerId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        where('sellerId', '==', user.uid)
       )
       const snap = await getDocs(q)
-      setListings(snap.docs.map(d => ({ id: d.id, ...d.data() } as Listing)))
+      const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as Listing))
+      results.sort((a, b) => {
+        const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime()
+        const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime()
+        return bTime - aTime
+      })
+      setListings(results)
     } catch (err) {
       console.error('Error fetching listings:', err)
       setError('Failed to load listings')
