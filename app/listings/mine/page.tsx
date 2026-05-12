@@ -27,7 +27,7 @@ interface Listing {
   locationCity: string
   locationState: string
   isActive: boolean
-  energyType: string
+  energySource: string
   createdAt: any
 }
 
@@ -38,7 +38,7 @@ interface EditForm {
   kwhAvailable: string
   locationCity: string
   locationState: string
-  energyType: string
+  energySource: string
 }
 
 export default function MyListingsPage() {
@@ -87,7 +87,7 @@ export default function MyListingsPage() {
       kwhAvailable: String(listing.kwhAvailable),
       locationCity: listing.locationCity || '',
       locationState: listing.locationState || '',
-      energyType: listing.energyType || 'solar',
+      energySource: listing.energySource || 'solar',
     })
     setError('')
     setSuccess('')
@@ -117,7 +117,7 @@ export default function MyListingsPage() {
         kwhAvailable: kwh,
         locationCity: editForm.locationCity.trim(),
         locationState: editForm.locationState.trim(),
-        energyType: editForm.energyType,
+        energySource: editForm.energySource,
         updatedAt: new Date().toISOString(),
       })
       setSuccess('Listing updated successfully')
@@ -277,15 +277,14 @@ export default function MyListingsPage() {
                       <div>
                         <label className="block text-sm text-gray-400 mb-1">Energy Type</label>
                         <select
-                          value={editForm.energyType}
-                          onChange={e => setEditForm({ ...editForm, energyType: e.target.value })}
+                          value={editForm.energySource}
+                          onChange={e => setEditForm({ ...editForm, energySource: e.target.value })}
                           className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
                         >
                           <option value="solar">Solar</option>
-                          <option value="wind">Wind</option>
-                          <option value="hydro">Hydro</option>
-                          <option value="gas">Gas</option>
-                          <option value="other">Other</option>
+                          <option value="generator">Generator</option>
+                          <option value="inverter">Inverter</option>
+                          <option value="battery">Battery</option>
                         </select>
                       </div>
                     </div>
