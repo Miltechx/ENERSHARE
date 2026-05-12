@@ -10,50 +10,125 @@ import { Icons } from '@/components/icons'
 
 // Correct Paystack bank codes for Nigeria (verified against Paystack API)
 const NIGERIAN_BANKS = [
-  { code: '044', name: 'Access Bank Plc' },
-  { code: '023', name: 'Citibank Nigeria' },
-  { code: '063', name: 'Diamond Bank (Access Bank)' },
-  { code: '050', name: 'Ecobank Nigeria' },
-  { code: '070', name: 'Fidelity Bank Plc' },
-  { code: '011', name: 'First Bank of Nigeria' },
-  { code: '214', name: 'First City Monument Bank (FCMB)' },
-  { code: '058', name: 'Guaranty Trust Bank (GTBank)' },
-  { code: '030', name: 'Heritage Bank' },
-  { code: '301', name: 'Jaiz Bank' },
-  { code: '082', name: 'Keystone Bank' },
-  { code: '526', name: 'Kuda Bank' },
-  { code: '014', name: 'MainStreet Bank' },
-  { code: '076', name: 'Polaris Bank' },
-  { code: '101', name: 'Providus Bank' },
-  { code: '221', name: 'Stanbic IBTC Bank' },
-  { code: '068', name: 'Standard Chartered Bank' },
-  { code: '232', name: 'Sterling Bank' },
-  { code: '100', name: 'Suntrust Bank' },
-  { code: '302', name: 'Taj Bank' },
-  { code: '102', name: 'Titan Trust Bank' },
-  { code: '032', name: 'Union Bank of Nigeria' },
-  { code: '033', name: 'United Bank for Africa (UBA)' },
-  { code: '215', name: 'Unity Bank Plc' },
-  { code: '035', name: 'Wema Bank' },
-  { code: '057', name: 'Zenith Bank' },
-  // Fintechs / Microfinance
-  { code: '100004', name: 'Opay (OPay Digital Services)' },
-  { code: '100033', name: 'Palmpay' },
+  // ── Commercial Banks ──────────────────────────────────────────
+  { code: '044',   name: 'Access Bank Plc' },
+  { code: '023',   name: 'Citibank Nigeria' },
+  { code: '063',   name: 'Access Bank (Diamond)' },
+  { code: '050',   name: 'Ecobank Nigeria' },
+  { code: '070',   name: 'Fidelity Bank Plc' },
+  { code: '011',   name: 'First Bank of Nigeria' },
+  { code: '214',   name: 'First City Monument Bank (FCMB)' },
+  { code: '058',   name: 'Guaranty Trust Bank (GTBank)' },
+  { code: '030',   name: 'Heritage Bank' },
+  { code: '301',   name: 'Jaiz Bank' },
+  { code: '082',   name: 'Keystone Bank' },
+  { code: '303',   name: 'Lotus Bank' },           // ← added
+  { code: '076',   name: 'Polaris Bank' },
+  { code: '104',   name: 'Parallex Bank' },         // ← added
+  { code: '105',   name: 'PremiumTrust Bank' },     // ← added
+  { code: '101',   name: 'Providus Bank' },
+  { code: '221',   name: 'Stanbic IBTC Bank' },
+  { code: '068',   name: 'Standard Chartered Bank' },
+  { code: '232',   name: 'Sterling Bank' },
+  { code: '100',   name: 'Suntrust Bank' },
+  { code: '302',   name: 'Taj Bank' },
+  { code: '102',   name: 'Titan Trust Bank' },
+  { code: '032',   name: 'Union Bank of Nigeria' },
+  { code: '033',   name: 'United Bank for Africa (UBA)' },
+  { code: '215',   name: 'Unity Bank Plc' },
+  { code: '035',   name: 'Wema Bank' },
+  { code: '057',   name: 'Zenith Bank' },
+  { code: '00103', name: 'Globus Bank' },           // ← added
+
+  // ── Payment Service Banks (PSBs) ──────────────────────────────
+  { code: '120001', name: '9mobile 9Payment Service Bank' }, // ← added
+  { code: '120004', name: 'Airtel Smartcash PSB' },          // ← added
+  { code: '120002', name: 'HopePSB' },                       // ← added
+  { code: '120003', name: 'MTN MoMo PSB' },                  // ← added
+  { code: '100002', name: 'Paga' },                          // ← added
+  { code: '999991', name: 'PalmPay' },
+  { code: '999992', name: 'OPay (Paycom)' },
+  { code: '100039', name: 'Titan Paystack' },                // ← added
+
+  // ── Digital Banks ─────────────────────────────────────────────
+  { code: '035A',  name: 'ALAT by Wema' },
+  { code: '565',   name: 'Carbon' },
+  { code: '50126', name: 'Eyowo' },                 // ← added
+  { code: '100022', name: 'GoMoney' },              // ← added
+  { code: '50211', name: 'Kuda Bank' },
+  { code: '125',   name: 'Rubies Microfinance Bank' },
+  { code: '51310', name: 'Sparkle Microfinance Bank' },
+  { code: '51269', name: 'Tangerine Money' },       // ← added
+  { code: '566',   name: 'VFD Microfinance Bank' },
+
+  // ── Merchant Banks ────────────────────────────────────────────
+  { code: '559',   name: 'Coronation Merchant Bank' },  // ← added
+  { code: '501',   name: 'FSDH Merchant Bank' },        // ← added
+  { code: '818',   name: 'FBNQuest Merchant Bank' },
+  { code: '561',   name: 'Nova Merchant Bank' },        // ← added
+  { code: '502',   name: 'Rand Merchant Bank' },        // ← added
+
+  // ── Mortgage & Savings Banks ───────────────────────────────────
+  { code: '801',   name: 'Abbey Mortgage Bank' },       // ← added
+  { code: '90077', name: 'AG Mortgage Bank' },          // ← added
+  { code: '401',   name: 'ASO Savings and Loans' },
+  { code: '812',   name: 'Gateway Mortgage Bank' },     // ← added
+  { code: '90052', name: 'Lagos Building Investment Company' }, // ← added
+  { code: '031',   name: 'Living Trust Mortgage Bank' },// ← added
+  { code: '090107', name: 'Firsttrust Mortgage Bank' },
+  { code: '90067', name: 'Refuge Mortgage Bank' },      // ← added
+
+  // ── Microfinance Banks (MFBs) ─────────────────────────────────
+  { code: '51204', name: 'Above Only MFB' },            // ← added
+  { code: '51312', name: 'Abulesoro MFB' },             // ← added
+  { code: '602',   name: 'Accion Microfinance Bank' },  // ← added
+  { code: '50315', name: 'Aella MFB' },                 // ← added
+  { code: '50036', name: 'Ahmadu Bello University MFB' }, // ← added
+  { code: '51336', name: 'AKU Microfinance Bank' },     // ← added
+  { code: '090561', name: 'Akuchukwu Microfinance Bank' }, // ← added
+  { code: '090629', name: 'Amegy Microfinance Bank' },  // ← added
+  { code: '50926', name: 'Amju Unique MFB' },           // ← added
+  { code: '51341', name: 'Ampersand Microfinance Bank' }, // ← added
+  { code: '50083', name: 'Aramoko MFB' },               // ← added
+  { code: 'MFB50094', name: 'Astrapolaris MFB' },       // ← added
+  { code: '090478', name: 'Avuenegbe Microfinance Bank' }, // ← added
+  { code: '51351', name: 'Awacash Microfinance Bank' }, // ← added
+  { code: '51229', name: 'Bainescredit MFB' },          // ← added
+  { code: '50117', name: 'Banc Corp Microfinance Bank' }, // ← added
+  { code: 'MFB50992', name: 'Baobab Microfinance Bank' }, // ← added
+  { code: '51100', name: 'BellBank Microfinance Bank' }, // ← added
+  { code: '50931', name: 'Bowen Microfinance Bank' },   // ← added
+  { code: '50823', name: 'CEMCS Microfinance Bank' },   // ← added
+  { code: '50171', name: 'Chanelle Microfinance Bank' }, // ← added
+  { code: '50204', name: 'Corestep MFB' },              // ← added
+  { code: '51297', name: 'Crescent MFB' },              // ← added
+  { code: '50263', name: 'Ekimogun MFB' },              // ← added
+  { code: '562',   name: 'Ekondo Microfinance Bank' },  // ← added
+  { code: '51318', name: 'Fairmoney Microfinance Bank' },
+  { code: '51314', name: 'Firmus MFB' },                // ← added
+  { code: '51251', name: 'Hackman Microfinance Bank' }, // ← added
+  { code: '50383', name: 'Hasal Microfinance Bank' },   // ← added
+  { code: '51244', name: 'Ibile Microfinance Bank' },   // ← added
+  { code: '50439', name: 'Ikoyi Osun MFB' },            // ← added
+  { code: '50457', name: 'Infinity MFB' },              // ← added
+  { code: '50502', name: 'Kadpoly MFB' },               // ← added
+  { code: '090592', name: 'Kanopoly MFB' },             // ← added
+  { code: '50200', name: 'Kredi Money MFB' },           // ← added
+  { code: '50549', name: 'Links MFB' },                 // ← added
+  { code: '090171', name: 'Mainstreet Microfinance Bank' }, // ← added
+  { code: '50563', name: 'Mayfair MFB' },               // ← added
+  { code: '50304', name: 'Mint MFB' },                  // ← added
   { code: '50515', name: 'Moniepoint Microfinance Bank' },
-  { code: '100025', name: 'Kuda Microfinance Bank' },
-  { code: '090110', name: 'VFD Microfinance Bank' },
-  { code: '090317', name: 'Fairmoney Microfinance Bank' },
-  { code: '100026', name: 'Carbon (OneFi)' },
-  { code: '035A', name: 'ALAT by Wema' },
-  { code: '090001', name: 'AsoSavings & Loans' },
-  { code: '090003', name: 'Jubilee Life Mortgage Bank' },
-  { code: '090006', name: 'SafeTrust Mortgage Bank' },
-  { code: '090107', name: 'FBNQuest Merchant Bank' },
-  { code: '090115', name: 'TCF Microfinance Bank' },
-  { code: '090175', name: 'Rubies Microfinance Bank' },
-  { code: '090267', name: 'Kuda Bank (MFB)' },
-  { code: '090325', name: 'Sparkle Microfinance Bank' },
-  { code: '090405', name: 'Prospa Microfinance Bank' },
+  { code: '090680', name: 'Pathfinder Microfinance Bank' }, // ← added
+  { code: '311',   name: 'Parkway ReadyCash' },         // ← added
+  { code: '50746', name: 'Petra Microfinance Bank' },   // ← added
+  { code: '50864', name: 'Polyunwana MFB' },            // ← added
+  { code: '51293', name: 'QuickFund MFB' },             // ← added
+  { code: '51113', name: 'Safe Haven MFB' },            // ← added
+  { code: '50800', name: 'Solid Rock MFB' },            // ← added
+  { code: '51253', name: 'Stellas MFB' },               // ← added
+  { code: '51211', name: 'TCF Microfinance Bank' },
+  { code: '50871', name: 'Unical MFB' },                // ← added
 ]
 
 async function getAuthToken(): Promise<string | null> {
